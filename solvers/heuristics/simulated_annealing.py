@@ -1,0 +1,1 @@
+"""Placeholder simulated annealing solver."""

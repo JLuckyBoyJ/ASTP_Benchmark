@@ -1,0 +1,12 @@
+# Environment files
+.env
+.env.*
+
+# Run outputs
+runs/*
+!runs/.gitkeep
+!runs/README.md
+
+# Local virtual environments
+envs/*
+!envs/.gitkeep

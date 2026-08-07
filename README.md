@@ -1,2 +1,3 @@
-# ASTP_Benchmark
-# ASTP_Benchmark
+# atsp-benchmark
+
+Placeholder repository scaffold for the ATSP benchmark project.
