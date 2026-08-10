@@ -1,0 +1,60 @@
+# Shared configuration for every EoH-on-ATSP run.
+# Task configs in this folder inherit from this file via `extends: base.yaml`.
+# Override anything from the command line, e.g.
+#   python python_scripts/llm/EoH/run_eoh_atsp.py --config configs/llm/EoH/atsp_gls.yaml \
+#          --set eoh.n_pop=5 --set data.train.count=16
+
+llm:
+  # Any OpenAI-compatible endpoint works; the host name only, no scheme.
+  api_endpoint: api.openai.com
+  api_key: ${OPENAI_API_KEY}          # never hard-code the key in the repo
+  model: gpt-4o-mini
+  timeout: 150
+  use_local: false
+  local_url: null
+
+# Evolutionary-computation settings.
+# Defaults follow the EoH paper's TSP setting: 20 generations, population 10,
+# 5 parent heuristics for the crossover-style operators E1/E2.
+eoh:
+  pop_size: 10
+  n_pop: 20
+  n_parents: 5
+  operators: [e1, e2, m1, m2]         # add m3 for the generalisation operator
+  operator_weights: null              # null = uniform
+  num_samplers: 4                     # concurrent LLM generations
+  num_evaluators: 4                   # concurrent evaluation subprocesses
+  max_sample_nums: null               # null = n_pop * pop_size
+  debug: false                        # true => DEBUG logs incl. raw LLM output
+  use_seed: false
+  seed_path: null
+  use_continue: false
+  continue_path: null
+  continue_id: 0
+
+run:
+  output_root: runs/llm/EoH           # runs/llm/EoH/<task>/<timestamp>_<tag>/
+  tag: ""
+  seed: 2024
+  trace_llm: true                     # write llm_calls.jsonl
+
+data:
+  # Training instances drive the fitness during evolution. They are synthetic
+  # by default so that no TSPLIB benchmark instance leaks into the search.
+  train:
+    source: synthetic                 # synthetic | tsplib
+    family: uniform                   # uniform | asymmetric_clustered
+    size: 50
+    count: 8
+    seed: 2024
+    effort: medium                    # reference-solver budget: low | medium | high
+    path: null                        # explicit .npz overrides the above
+
+  # Held-out benchmark: the 19 TSPLIB ATSP instances with proven optima.
+  test:
+    source: tsplib
+    dir: data/raw/atsp
+    best_known: data/raw/atsp/bestSolutions.txt
+    max_n: null
+    min_n: null
+    names: null                       # e.g. [ftv33, ftv47, ry48p]

@@ -1,0 +1,36 @@
+# Task 3 — Ant Colony Optimisation pheromone rule for ATSP.
+# EoH designs `update_pheromone` on a genuinely DIRECTED pheromone matrix.
+#
+#   python python_scripts/llm/EoH/run_eoh_atsp.py --config configs/llm/EoH/atsp_aco.yaml
+
+extends: base.yaml
+
+task:
+  name: aco
+  timeout: 240                # ant construction is the slow part
+  params:
+    n_ants: 20
+    iter_max: 30
+    alpha: 1.0
+    beta: 2.0
+    rho: 0.1
+    n_runs: 1                 # independent ACO restarts per instance (>=2 is less noisy)
+    seed: 2024
+
+data:
+  train:
+    source: synthetic
+    family: uniform
+    size: 50
+    count: 3
+    seed: 2024
+
+eval:
+  params:
+    n_ants: 20
+    iter_max: 50
+    alpha: 1.0
+    beta: 2.0
+    rho: 0.1
+    n_runs: 3
+    seed: 2024

@@ -1,1 +1,6 @@
-# Placeholder dependencies file.
+# Core dependencies for the ATSP benchmark and the EoH solver.
+numpy>=1.24
+pyyaml>=6.0
+joblib>=1.3
+requests>=2.31
+pytest>=7.4

@@ -1,12 +1,41 @@
-# Environment files
+# Secrets — never commit a filled-in .env; envs/.env.example is the template
 .env
 .env.*
+!.env.example
+envs/.env
+envs/.env.*
+!envs/.env.example
 
-# Run outputs
+# Run outputs — keep only the READMEs that document the layout
 runs/*
 !runs/.gitkeep
 !runs/README.md
+!runs/llm/
+runs/llm/*
+!runs/llm/EoH/
+runs/llm/EoH/*
+!runs/llm/EoH/README.md
 
-# Local virtual environments
+# Local virtual environments (the specs in envs/ are tracked, the envs are not)
 envs/*
 !envs/.gitkeep
+!envs/README.md
+!envs/.env.example
+!envs/llm/
+envs/llm/*
+!envs/llm/EoH/
+!envs/llm/EoH/*.yml
+!envs/llm/EoH/*.txt
+!envs/llm/EoH/README.md
+
+# Generated synthetic instances (regenerate with data/generate_atsp.py --all)
+data/synthetic/**/*.npz
+data/processed/*
+!data/processed/.gitkeep
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ipynb_checkpoints/

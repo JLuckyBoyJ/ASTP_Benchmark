@@ -1,1 +1,45 @@
-# Placeholder TSPLIB dataset configuration.
+# TSPLIB ATSP benchmark — the held-out test set.
+#
+# 19 instances shipped in data/raw/atsp, all EDGE_WEIGHT_TYPE: EXPLICIT with
+# EDGE_WEIGHT_FORMAT: FULL_MATRIX. Proven optima come from bestSolutions.txt.
+# Loaded by solvers/llm/EoH/atsp/data/tsplib.py; solver configs reference this
+# split through their own `data.test` block.
+
+name: tsplib_atsp
+source: tsplib
+dir: data/raw/atsp
+best_known: data/raw/atsp/bestSolutions.txt
+reference: optimal          # gaps are true optimality gaps
+
+# Optional filters (null = no filter)
+max_n: null
+min_n: null
+names: null
+
+# The corpus, smallest first. `n` is the DIMENSION field; `opt` the proven optimum.
+instances:
+  - {name: br17,    n: 17,  opt: 39}
+  - {name: ftv33,   n: 34,  opt: 1286}
+  - {name: ftv35,   n: 36,  opt: 1473}
+  - {name: ftv38,   n: 39,  opt: 1530}
+  - {name: p43,     n: 43,  opt: 5620}
+  - {name: ftv44,   n: 45,  opt: 1613}
+  - {name: ftv47,   n: 48,  opt: 1776}
+  - {name: ry48p,   n: 48,  opt: 14422}
+  - {name: ft53,    n: 53,  opt: 6905}
+  - {name: ftv55,   n: 56,  opt: 1608}
+  - {name: ftv64,   n: 65,  opt: 1839}
+  - {name: ft70,    n: 70,  opt: 38673}
+  - {name: ftv70,   n: 71,  opt: 1950}
+  - {name: kro124p, n: 100, opt: 36230}   # bestSolutions.txt lists it as "kro124"
+  - {name: ftv170,  n: 171, opt: 2755}
+  - {name: rbg323,  n: 323, opt: 1326}
+  - {name: rbg358,  n: 358, opt: 1163}
+  - {name: rbg403,  n: 403, opt: 2465}
+  - {name: rbg443,  n: 443, opt: 2720}
+
+notes:
+  - Diagonals use different sentinels per file (0, 9999, 100000000); the loader
+    normalises them to 0, which is safe because a Hamiltonian tour never uses them.
+  - Matrix rows are wrapped across several text lines in most files.
+  - This split is never used during heuristic evolution — only for reporting.

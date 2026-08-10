@@ -1,0 +1,7 @@
+# Pinned pip environment for reproducing EoH-on-ATSP runs.
+# Regenerate with:  pip freeze > envs/eoh-atsp-pip.txt
+numpy>=1.24,<3
+pyyaml>=6.0
+joblib>=1.3
+requests>=2.31
+pytest>=7.4

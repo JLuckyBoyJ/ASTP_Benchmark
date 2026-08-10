@@ -1,1 +1,19 @@
-# Placeholder LLM solver configuration.
+# LLM-based solvers.
+#
+# EoH (Evolution of Heuristics, ICML 2024) is configured per task under
+# configs/llm/EoH/. This file only records which solvers exist and where their
+# configuration lives, so the benchmark driver can enumerate them.
+
+eoh:
+  implementation: solvers/llm/EoH
+  entry_point: python_scripts/llm/EoH/run_eoh_atsp.py
+  default_model: gpt-4o-mini
+  configs:
+    construct: configs/llm/EoH/atsp_construct.yaml
+    gls:       configs/llm/EoH/atsp_gls.yaml
+    aco:       configs/llm/EoH/atsp_aco.yaml
+    rnr:       configs/llm/EoH/atsp_rnr.yaml
+
+reevo:
+  implementation: solvers/llm/ReEvo
+  status: not_implemented

@@ -1,0 +1,29 @@
+# Task 1 — constructive heuristic for ATSP.
+# EoH designs `select_next_node`, the rule that picks the next city while a
+# tour is built greedily from the depot.
+#
+#   python python_scripts/llm/EoH/run_eoh_atsp.py --config configs/llm/EoH/atsp_construct.yaml
+
+extends: base.yaml
+
+task:
+  name: construct
+  timeout: 60                 # seconds per heuristic evaluation (hard kill)
+  params:
+    n_candidates: 20          # cheapest outgoing arcs offered at each step
+    start_node: 0
+
+# Evaluation is cheap here, so use more training instances than the other tasks.
+data:
+  train:
+    source: synthetic
+    family: uniform
+    size: 50
+    count: 8
+    seed: 2024
+
+# Settings used when benchmarking on the held-out TSPLIB instances.
+eval:
+  params:
+    n_candidates: 20
+    start_node: 0

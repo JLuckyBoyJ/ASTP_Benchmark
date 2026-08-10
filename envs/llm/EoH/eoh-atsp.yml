@@ -1,0 +1,17 @@
+# Conda environment for running EoH on the ATSP benchmark.
+#   conda env create -f envs/eoh-atsp.yml
+#   conda activate eoh-atsp
+#   pip install -e ./solvers/llm/EoH/eoh
+name: eoh-atsp
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11          # EoH requires >= 3.10
+  - numpy>=1.24
+  - pyyaml>=6.0
+  - joblib>=1.3
+  - requests>=2.31
+  - pytest>=7.4
+  - pip
+  - pip:
+      - -r ../requirements.txt

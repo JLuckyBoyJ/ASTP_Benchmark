@@ -1,0 +1,33 @@
+# Task 4 — ruin-and-recreate destroy operator for ATSP.
+# EoH designs `destroy_nodes`, which chooses the cities to rip out of the
+# incumbent tour before cheapest-insertion rebuilds it.
+#
+#   python python_scripts/llm/EoH/run_eoh_atsp.py --config configs/llm/EoH/atsp_rnr.yaml
+
+extends: base.yaml
+
+task:
+  name: rnr
+  timeout: 180
+  params:
+    n_destroy: null           # null => max(2, n // 5)
+    iter_max: 50
+    time_limit: 2.0           # seconds per instance during evolution
+    n_candidates: 10
+    max_seg: 3
+
+data:
+  train:
+    source: synthetic
+    family: uniform
+    size: 50
+    count: 4
+    seed: 2024
+
+eval:
+  params:
+    n_destroy: null
+    iter_max: 200
+    time_limit: 10.0
+    n_candidates: 10
+    max_seg: 3
