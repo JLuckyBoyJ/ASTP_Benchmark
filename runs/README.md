@@ -10,5 +10,5 @@ runs/
 └── benchmark_tables.md               cross-family paper tables
 ```
 
-`python_scripts/generate_paper_tables.py` writes the top-level tables;
+`python_scripts/llm/EoH/generate_paper_tables.py` writes the top-level tables;
 each family also writes its own (`runs/llm/EoH/benchmark_tables.md`).

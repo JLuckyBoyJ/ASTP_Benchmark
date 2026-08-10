@@ -18,8 +18,8 @@ ARGS=()
 [[ -n "$MAX_N" ]] && ARGS+=(--max-n "$MAX_N")
 
 echo "--- llm/EoH ---------------------------------------------------"
-$PYTHON python_scripts/run_benchmarks.py "${ARGS[@]}"
+$PYTHON python_scripts/llm/EoH/run_benchmarks.py "${ARGS[@]}"
 
 echo
 echo "--- tables ----------------------------------------------------"
-$PYTHON python_scripts/generate_paper_tables.py
+$PYTHON python_scripts/llm/EoH/generate_paper_tables.py

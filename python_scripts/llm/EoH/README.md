@@ -7,7 +7,7 @@ Command-line entry points for the EoH solver. Each is a thin CLI over
 |---|---|
 | `run_eoh_atsp.py` | evolve a heuristic for one ATSP task (or `--smoke` it without an LLM) |
 | `eval_eoh_atsp.py` | score a heuristic on the held-out TSPLIB ATSP instances |
-| `generate_eoh_tables.py` | aggregate all evaluated runs into Markdown tables |
+| `generate_paper_tables.py` | aggregate all evaluated runs into Markdown tables |
 
 Repo-level drivers in `python_scripts/` (`run_benchmarks.py`,
 `generate_paper_tables.py`) call these, so you can either drive one solver
@@ -22,5 +22,5 @@ python python_scripts/llm/EoH/run_eoh_atsp.py --task gls --tag run1
 
 python python_scripts/llm/EoH/eval_eoh_atsp.py --task gls --baseline
 python python_scripts/llm/EoH/eval_eoh_atsp.py --run runs/llm/EoH/gls/<timestamp>_run1
-python python_scripts/llm/EoH/generate_eoh_tables.py
+python python_scripts/llm/EoH/generate_paper_tables.py
 ```

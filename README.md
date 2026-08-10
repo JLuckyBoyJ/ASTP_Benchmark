@@ -71,8 +71,8 @@ Individual steps:
 python python_scripts/llm/EoH/run_eoh_atsp.py --task gls --smoke     # dry run one task
 python python_scripts/llm/EoH/run_eoh_atsp.py --task gls --tag run1  # evolve
 python python_scripts/llm/EoH/eval_eoh_atsp.py --run runs/llm/EoH/gls/<timestamp>_run1
-python python_scripts/run_benchmarks.py                              # score everything
-python python_scripts/generate_paper_tables.py                       # -> runs/benchmark_tables.md
+python python_scripts/llm/EoH/run_benchmarks.py                              # score everything
+python python_scripts/llm/EoH/generate_paper_tables.py                       # -> runs/benchmark_tables.md
 ```
 
 **The full command reference — every task, every override, cluster submission
@@ -90,10 +90,15 @@ and how to read a run — lives in
 | `aco` | `update_pheromone` — directed pheromone rule | Ant System |
 | `rnr` | `destroy_nodes` — ruin-and-recreate destroy operator | random removal |
 
-Reference numbers for the baselines on the TSPLIB test set (mean optimality gap):
-nearest neighbour **33.1 %** over the 14 instances up to n = 100; classic GLS
-**1.4 %** and random ruin-and-recreate **2.1 %** on the four smallest, at the
-default evaluation budget. Those are the bars EoH has to clear.
+Baseline results on all 19 TSPLIB ATSP instances at the default evaluation
+budget — the bars EoH has to clear:
+
+| task | baseline | mean optimality gap |
+|---|---|---|
+| `gls` | Voudouris–Tsang penalty | **3.01 %** |
+| `rnr` | random removal | **4.85 %** |
+| `construct` | nearest neighbour | **35.77 %** |
+| `aco` | Ant System | **63.38 %** |
 
 ## Protocol
 

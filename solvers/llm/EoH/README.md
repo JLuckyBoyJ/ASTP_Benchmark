@@ -22,8 +22,10 @@ top. The method is unchanged; the *task* is new.
 | Logging | one `run_log.txt` | per-run directory: config, meta, full log, every LLM call, best heuristic |
 | Layout | one folder per example | `atsp/` package mirrored across `configs/`, `scripts/`, `tests/`, `runs/`, `evaluation/`, `python_scripts/` |
 
-The original README is preserved as [`README_UPSTREAM.md`](./README_UPSTREAM.md);
-the upstream `eoh/` package and `examples/` are vendored verbatim.
+The upstream `eoh/` package is vendored **verbatim** — diff it against the
+[original release](https://github.com/FeiLiu36/EoH) to confirm the method is
+unmodified. Upstream's 31 examples, docs and figures (127 MB, all for symmetric
+problems) are not vendored; nothing in this repository referenced them.
 
 ---
 
@@ -138,7 +140,7 @@ python python_scripts/llm/EoH/eval_eoh_atsp.py --task gls       --baseline
 python python_scripts/llm/EoH/eval_eoh_atsp.py --task aco       --baseline
 python python_scripts/llm/EoH/eval_eoh_atsp.py --task rnr       --baseline
 
-python python_scripts/run_benchmarks.py --baselines-only        # all four at once
+python python_scripts/llm/EoH/run_benchmarks.py --baselines-only        # all four at once
 ```
 
 ### 4.4 Evolve (needs `OPENAI_API_KEY` in `envs/.env`)
@@ -164,13 +166,14 @@ Useful variations:
 # quick pilot (fewer generations, smaller population)
 python python_scripts/llm/EoH/run_eoh_atsp.py --task gls --set eoh.n_pop=5 --set eoh.pop_size=4
 
-# paper-scale GLS: 64 training instances of 100 cities, 10 s of GLS each
+# paper-scale GLS: 64 training instances of 100 cities, 60 s of GLS each
 python python_scripts/llm/EoH/run_eoh_atsp.py --task gls \
-  --set data.train.size=100 --set data.train.count=64 \
-  --set task.params.time_limit=10 --set task.params.ite_max=1000
+  --set 'data.train=[{source: synthetic, family: asymmetric_clustered, size: 100, count: 64}]' \
+  --set task.params.time_limit=60 --set task.timeout=4000
 
-# clustered instead of uniform training instances
-python python_scripts/llm/EoH/run_eoh_atsp.py --task rnr --set data.train.family=asymmetric_clustered
+# a single-family training set, for an ablation on the training distribution
+python python_scripts/llm/EoH/run_eoh_atsp.py --task rnr \
+  --set 'data.train=[{source: synthetic, family: asymmetric_clustered, size: 50, count: 8}]'
 
 # a mixed training split (a numeric path element indexes into the list)
 python python_scripts/llm/EoH/run_eoh_atsp.py --task gls --set data.train.0.count=16
@@ -217,17 +220,17 @@ python python_scripts/llm/EoH/eval_eoh_atsp.py --task gls --baseline --names ftv
 python python_scripts/llm/EoH/eval_eoh_atsp.py --run runs/llm/EoH/gls/<run> --split train
 
 # everything: baselines + every finished run, all four tasks
-python python_scripts/run_benchmarks.py
+python python_scripts/llm/EoH/run_benchmarks.py
 bash scripts/llm/EoH/benchmark.sh                        # eval + tables in one go
 ```
 
 ### 4.6 Tables
 
 ```bash
-python python_scripts/llm/EoH/generate_eoh_tables.py     # -> runs/llm/EoH/benchmark_tables.md
-python python_scripts/llm/EoH/generate_eoh_tables.py --task gls
-python python_scripts/generate_paper_tables.py           # -> runs/benchmark_tables.md
-python python_scripts/generate_paper_tables.py --out paper/supplementary/results.md
+python python_scripts/llm/EoH/generate_paper_tables.py     # -> runs/llm/EoH/benchmark_tables.md
+python python_scripts/llm/EoH/generate_paper_tables.py --task gls
+python python_scripts/llm/EoH/generate_paper_tables.py           # -> runs/benchmark_tables.md
+python python_scripts/llm/EoH/generate_paper_tables.py --out paper/supplementary/results.md
 ```
 
 ### 4.7 Cluster
@@ -310,8 +313,7 @@ mirrored in every top-level folder of the repository.
 ```
 solvers/llm/EoH/
 ├── eoh/                       vendored upstream framework (unmodified)
-├── examples/ docs/            upstream material, kept for reference
-├── README_UPSTREAM.md
+│   └── src/eoh/               config, run, problem, eoh/, llm/, utils/
 └── atsp/                      the ATSP layer
     ├── _bootstrap.py          makes `eoh` importable without installing
     ├── config.py              YAML -> run config (extends, ${ENV}, --set)
@@ -328,7 +330,7 @@ solvers/llm/EoH/
 | folder | EoH-specific contents |
 |---|---|
 | `configs/llm/EoH/` | `base.yaml` + one YAML per task |
-| `python_scripts/llm/EoH/` | `run_eoh_atsp.py`, `eval_eoh_atsp.py`, `generate_eoh_tables.py` |
+| `python_scripts/llm/EoH/` | `run_eoh_atsp.py`, `eval_eoh_atsp.py`, `run_benchmarks.py`, `generate_paper_tables.py` |
 | `scripts/llm/EoH/` | `run_all.sh`, `benchmark.sh`, `smoke.sh`, `submit_slurm.sh` |
 | `evaluation/llm/EoH/` | `benchmark_runner.py`, `stats_analysis.py` |
 | `tests/llm/EoH/` | `test_data.py`, `test_engines.py`, `test_tasks.py`, `test_config.py`, `test_pipeline.py` |

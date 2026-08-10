@@ -18,5 +18,5 @@ ARGS=()
 [[ -n "$MAX_N" ]] && ARGS+=(--max-n "$MAX_N")
 for task in $TASKS; do ARGS+=(--task "$task"); done
 
-$PYTHON python_scripts/run_benchmarks.py "${ARGS[@]}"
-$PYTHON python_scripts/llm/EoH/generate_eoh_tables.py
+$PYTHON python_scripts/llm/EoH/run_benchmarks.py "${ARGS[@]}"
+$PYTHON python_scripts/llm/EoH/generate_paper_tables.py
