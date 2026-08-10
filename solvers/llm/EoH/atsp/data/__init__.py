@@ -10,7 +10,7 @@ from .synthetic import (
     save_dataset,
     reference_cost,
 )
-from .registry import resolve_split
+from .registry import describe_split, resolve_split
 
 __all__ = [
     "ATSPInstance",
@@ -24,4 +24,5 @@ __all__ = [
     "load_dataset",
     "reference_cost",
     "resolve_split",
+    "describe_split",
 ]

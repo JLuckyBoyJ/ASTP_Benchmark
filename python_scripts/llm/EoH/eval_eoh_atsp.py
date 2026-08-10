@@ -80,10 +80,13 @@ def main(argv=None) -> int:
     args = parser.parse_args(argv)
 
     config, task, run_dir = _config_for(args)
-    if args.max_n is not None:
-        config["data"][args.split]["max_n"] = args.max_n
-    if args.names:
-        config["data"][args.split]["names"] = args.names
+    # A split may be a single spec or a list of specs; filters apply to each.
+    split = config["data"][args.split]
+    for spec in (split if isinstance(split, list) else [split]):
+        if args.max_n is not None:
+            spec["max_n"] = args.max_n
+        if args.names:
+            spec["names"] = args.names
 
     heuristic_path = args.heuristic
     train_objective = None

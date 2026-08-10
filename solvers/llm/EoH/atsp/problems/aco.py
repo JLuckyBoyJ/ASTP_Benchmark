@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import time
+
 import numpy as np
 
 from ..engines.aco import run_aco
@@ -63,8 +65,8 @@ def update_pheromone(pheromone: np.ndarray, ant_tours: list, tour_costs: np.ndar
 
     def __init__(self, instances, n_ants: int = 20, iter_max: int = 50,
                  alpha: float = 1.0, beta: float = 2.0, rho: float = 0.1,
-                 n_runs: int = 1, seed: int = 2024, timeout: int = 120,
-                 n_processes: int = 1):
+                 n_runs: int = 1, seed: int = 2024, time_limit: float | None = None,
+                 timeout: int = 120, n_processes: int = 1):
         super().__init__(instances, timeout=timeout, n_processes=n_processes)
         self.n_ants = int(n_ants)
         self.iter_max = int(iter_max)
@@ -73,18 +75,26 @@ def update_pheromone(pheromone: np.ndarray, ant_tours: list, tour_costs: np.ndar
         self.rho = float(rho)
         self.n_runs = int(n_runs)
         self.seed = int(seed)
+        # Optional wall-clock cap per ACO run. Without it the budget is purely
+        # iteration-based, so an update rule that costs O(n^2) per iteration is
+        # free during evolution and only shows up as a slow benchmark later.
+        # With it, the fitness measures tour quality per second.
+        self.time_limit = None if time_limit is None else float(time_limit)
 
     def solve_instance(self, callable_func, instance) -> float:
-        costs = [
-            run_aco(instance.dist, callable_func, n_ants=self.n_ants,
-                    iter_max=self.iter_max, alpha=self.alpha, beta=self.beta,
-                    rho=self.rho, seed=self.seed + run)
-            for run in range(self.n_runs)
-        ]
+        costs = []
+        for run in range(self.n_runs):
+            deadline = (time.perf_counter() + self.time_limit
+                        if self.time_limit else None)
+            costs.append(run_aco(instance.dist, callable_func, n_ants=self.n_ants,
+                                 iter_max=self.iter_max, alpha=self.alpha,
+                                 beta=self.beta, rho=self.rho, seed=self.seed + run,
+                                 deadline=deadline))
         return float(np.mean(costs))
 
     def describe(self) -> dict:
         info = super().describe()
         info.update(n_ants=self.n_ants, iter_max=self.iter_max, alpha=self.alpha,
-                    beta=self.beta, rho=self.rho, n_runs=self.n_runs, seed=self.seed)
+                    beta=self.beta, rho=self.rho, n_runs=self.n_runs, seed=self.seed,
+                    time_limit=self.time_limit)
         return info

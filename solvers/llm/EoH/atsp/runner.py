@@ -10,7 +10,7 @@ import time
 from . import _bootstrap  # noqa: F401
 from .baselines import baseline_code, baseline_name, load_baseline
 from .config import dump_config, load_config, repo_root
-from .data import resolve_split
+from .data import describe_split, resolve_split
 from .llm_trace import LLMTracer
 from .logging_utils import (
     Stopwatch,
@@ -40,7 +40,9 @@ def _load_train_instances(config: dict, root: str):
 def _describe_instances(instances) -> str:
     sizes = sorted({ins.n for ins in instances})
     kinds = sorted({ins.ref_kind for ins in instances})
-    return (f"{len(instances)} instances, n={sizes[0]}..{sizes[-1]}, "
+    families = sorted({str(ins.meta.get("family", ins.source)) for ins in instances})
+    span = f"n={sizes[0]}" if len(sizes) == 1 else f"n={sizes[0]}..{sizes[-1]}"
+    return (f"{len(instances)} instances, {span}, families={'/'.join(families)}, "
             f"reference={'/'.join(kinds)}")
 
 
@@ -204,6 +206,7 @@ def evolve(config: dict) -> dict:
         "dotenv": config.get("_dotenv"),
         "model": llm_cfg.get("model"),
         "train": _describe_instances(instances),
+        "train_spec": describe_split(config["data"]["train"]),
         "task_settings": problem.describe(),
     })
     write_json(os.path.join(run_dir, "meta.json"), meta)
@@ -252,6 +255,7 @@ def evolve(config: dict) -> dict:
         "run_dir": run_dir,
         "config": config.get("_config_path"),
         "train": _describe_instances(instances),
+        "train_spec": describe_split(config["data"]["train"]),
         "task_settings": problem.describe(),
         "eoh": {k: ec[k] for k in ("pop_size", "n_pop", "n_parents", "operators",
                                    "num_samplers", "num_evaluators", "max_sample_nums")},

@@ -21,9 +21,48 @@ data:  # train (synthetic) and test (TSPLIB) splits
 eval:  # the larger budget used when benchmarking on the test set
 ```
 
+## Training splits can mix families and sizes
+
+`data.train` accepts either one spec or a **list** of specs whose instances are
+concatenated:
+
+```yaml
+data:
+  train:
+    - {source: synthetic, family: asymmetric_clustered, size: 50,  count: 8, effort: medium}
+    - {source: synthetic, family: asymmetric_clustered, size: 200, count: 2, effort: low}
+    - {source: synthetic, family: uniform,              size: 200, count: 2, effort: low}
+```
+
+This is what `atsp_gls.yaml` ships with, for two measured reasons.
+
+**TSPLIB ATSP is not one distribution.** The `ftv`/`kro` instances are
+near-symmetric with a directional perturbation — corr(d[i,j], d[j,i]) between
+0.6 and 1.0, which `asymmetric_clustered` reproduces — while the `rbg`
+instances have essentially independent directions (corr ≈ 0.03, which
+`uniform` reproduces). A heuristic evolved on one family alone wins on that
+half of the benchmark and loses on the other.
+
+**Cost only matters when the clock binds.** With `ite_max` capping the search,
+an update rule costing O(n²) per call is free at n=50 and ruinous at n=443.
+Setting `ite_max` very high makes `time_limit` the only budget, so the fitness
+measures tour quality *per second* — and the large training instances make the
+search feel it.
+
 ## Overriding
 
-Nothing needs to be edited to change a setting — pass `--set key.path=value`:
+Nothing needs to be edited to change a setting — pass `--set key.path=value`.
+A numeric path element indexes into a list:
+
+```bash
+# change one entry of a mixed split
+--set data.train.0.count=16
+
+# replace the whole split with a single-family one
+--set 'data.train=[{source: synthetic, family: asymmetric_clustered, size: 50, count: 16}]'
+```
+
+More examples:
 
 ```bash
 # shorter pilot run

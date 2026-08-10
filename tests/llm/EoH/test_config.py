@@ -42,9 +42,49 @@ def test_shipped_config_matches_the_paper_defaults(task):
 def test_train_is_synthetic_and_test_is_tsplib(task):
     """No benchmark instance may leak into the evolution loop."""
     config = load_config(config_path(task))
-    assert config["data"]["train"]["source"] == "synthetic"
+    train = config["data"]["train"]
+    for spec in (train if isinstance(train, list) else [train]):
+        assert spec["source"] == "synthetic"
     assert config["data"]["test"]["source"] == "tsplib"
     assert config["data"]["test"]["dir"] == "data/raw/atsp"
+
+
+@pytest.mark.parametrize("task", sorted(TASKS))
+def test_every_task_trains_on_both_structural_regimes(task):
+    """ftv/kro-like (clustered) and rbg-like (uniform) must both be represented."""
+    train = load_config(config_path(task))["data"]["train"]
+    assert isinstance(train, list), f"{task} should use a mixed training split"
+    families = {spec["family"] for spec in train}
+    assert {"asymmetric_clustered", "uniform"} <= families
+    assert max(spec["size"] for spec in train) >= 200, "needs a large instance"
+
+
+@pytest.mark.parametrize("task,cap", [("gls", "ite_max"), ("rnr", "iter_max")])
+def test_search_tasks_are_wall_clock_bound(task, cap):
+    """With an iteration cap the search never feels the cost of its own rule."""
+    params = load_config(config_path(task))["task"]["params"]
+    assert params[cap] >= 1_000_000
+    assert params["time_limit"] > 0
+
+
+def test_aco_has_a_wall_clock_cap():
+    params = load_config(config_path("aco"))["task"]["params"]
+    assert params["time_limit"] and params["time_limit"] > 0
+
+
+@pytest.mark.parametrize("task", sorted(TASKS))
+def test_training_sets_are_shared_across_tasks(task):
+    """Every train entry must be one the generator pre-builds, so `--all` covers it."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        "gen_atsp", os.path.join(ROOT, "data", "generate_atsp.py"))
+    gen = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(gen)
+    available = {(f, s, c, sd) for f, s, c, sd, _ in gen.DEFAULT_SETS}
+
+    for entry in load_config(config_path(task))["data"]["train"]:
+        key = (entry["family"], entry["size"], entry["count"], entry["seed"])
+        assert key in available, f"{task}: {key} is not in generate_atsp.DEFAULT_SETS"
 
 
 @pytest.mark.parametrize("task", sorted(TASKS))
@@ -83,6 +123,29 @@ def test_overrides_are_yaml_typed():
 def test_override_can_create_a_missing_key():
     config = load_config(config_path("aco"), ["run.tag=pilot"])
     assert config["run"]["tag"] == "pilot"
+
+
+def test_override_can_index_into_a_list_split():
+    config = load_config(config_path("gls"), ["data.train.0.count=16"])
+    assert config["data"]["train"][0]["count"] == 16
+    assert config["data"]["train"][1]["count"] != 16      # siblings untouched
+
+
+def test_override_can_replace_a_whole_split():
+    config = load_config(config_path("gls"), [
+        "data.train=[{source: synthetic, family: uniform, size: 30, count: 2}]"])
+    assert config["data"]["train"] == [
+        {"source": "synthetic", "family": "uniform", "size": 30, "count": 2}]
+
+
+def test_out_of_range_list_index_is_rejected():
+    with pytest.raises(ValueError, match="out of range"):
+        load_config(config_path("gls"), ["data.train.99.count=1"])
+
+
+def test_non_numeric_list_index_is_rejected():
+    with pytest.raises(ValueError, match="must be a number"):
+        load_config(config_path("gls"), ["data.train.family=uniform"])
 
 
 def test_malformed_override_is_rejected():

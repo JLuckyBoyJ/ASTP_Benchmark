@@ -2,39 +2,69 @@
 # EoH designs `update_edge_distance`, the rule that reshapes the cost landscape
 # so an Or-opt/swap local search escapes its local optimum.
 #
-#   python python_scripts/llm/EoH/run_eoh_atsp.py --config configs/llm/EoH/atsp_gls.yaml
+#   python python_scripts/llm/EoH/run_eoh_atsp.py --task gls
 #
-# Paper-scale settings (much slower, needs a bigger LLM budget):
-#   --set data.train.size=100 --set data.train.count=64 \
-#   --set task.params.time_limit=10 --set task.params.ite_max=1000
+# Two design decisions below are worth understanding before changing them.
+#
+# 1. MIXED TRAINING SET. TSPLIB ATSP is not one distribution. The ftv/kro
+#    instances are near-symmetric with a directional perturbation
+#    (corr(d[i,j], d[j,i]) ~ 0.6-1.0, reproduced by `asymmetric_clustered`),
+#    while the rbg instances have essentially independent directions
+#    (corr ~ 0.03, reproduced by `uniform`). Evolving on one family alone
+#    yields a heuristic that wins on that half of the benchmark and loses on
+#    the other; measured on a single-family run, EoH scored 0.60% mean gap on
+#    the 13 correlated instances and 3.69% on the 6 uncorrelated ones.
+#
+# 2. WALL-CLOCK BUDGET (`ite_max` effectively disabled). With an iteration cap
+#    at n=50 the time limit never binds, so an update rule costing O(n^2) per
+#    call is free during evolution and ruinous at n=443. Letting `time_limit`
+#    be the only budget makes the fitness measure tour quality per second, so
+#    the search prices in its own cost. The large training instances exist for
+#    the same reason.
 
 extends: base.yaml
 
 task:
   name: gls
-  timeout: 180                # a GLS evaluation touches every training instance
+  timeout: 300                # a GLS evaluation touches every training instance
   params:
-    time_limit: 3.0           # seconds of GLS per instance during evolution
-    ite_max: 200
+    time_limit: 5.0           # seconds of GLS per instance during evolution
+    ite_max: 1000000          # effectively unlimited: time_limit is the budget
     perturbation_moves: 1
     n_penalise: 5             # most-augmented arcs penalised per perturbation
     n_candidates: 10          # candidate neighbour list size for local search
     max_seg: 3                # longest Or-opt segment
 
+# Both structural regimes and both size regimes. ~12 instances x 5 s = ~60 s
+# per heuristic evaluation; a full run is roughly an hour.
 data:
   train:
-    source: synthetic
-    family: uniform
-    size: 50
-    count: 4
-    seed: 2024
+    - {source: synthetic, family: asymmetric_clustered, size: 50,  count: 8, seed: 2024, effort: medium}
+    - {source: synthetic, family: asymmetric_clustered, size: 200, count: 4, seed: 2024, effort: low}
+    - {source: synthetic, family: uniform,              size: 200, count: 4, seed: 2024, effort: low}
 
 # Longer budget at benchmark time, as in the paper's test protocol.
 eval:
   params:
     time_limit: 10.0
-    ite_max: 1000
+    ite_max: 1000000
     perturbation_moves: 1
     n_penalise: 5
     n_candidates: 10
     max_seg: 3
+
+# ── recipes ───────────────────────────────────────────────────────────────────
+#
+# Single-family run (reproduces the earlier clustered-only result):
+#   --set 'data.train=[{source: synthetic, family: asymmetric_clustered, size: 50, count: 16}]'
+#
+# Cheaper pilot — drop the large instances, keep the wall-clock budget:
+#   --set 'data.train=[{source: synthetic, family: asymmetric_clustered, size: 50, count: 8}]' \
+#   --set task.params.time_limit=3
+#
+# Tune one entry of the mixed split in place (numeric path element = list index):
+#   --set data.train.0.count=16
+#
+# Paper scale (needs numba or a lot of patience):
+#   --set 'data.train=[{source: synthetic, family: asymmetric_clustered, size: 100, count: 64}]' \
+#   --set task.params.time_limit=60 --set task.timeout=4000

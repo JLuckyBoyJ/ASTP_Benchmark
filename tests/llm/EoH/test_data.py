@@ -7,6 +7,7 @@ import pytest
 
 from solvers.llm.EoH.atsp.data import (
     FAMILIES,
+    describe_split,
     generate_instance,
     load_dataset,
     resolve_split,
@@ -105,3 +106,49 @@ def test_resolve_split_reads_the_tsplib_test_set():
 def test_unknown_source_is_rejected():
     with pytest.raises(ValueError):
         resolve_split({"source": "kaggle"}, ROOT, log=lambda *_: None)
+
+
+# ── multi-spec splits ─────────────────────────────────────────────────────────
+
+def _spec(tmp_path, family, size, count, seed):
+    return {"source": "synthetic", "family": family, "size": size, "count": count,
+            "seed": seed, "effort": "low",
+            "path": str(tmp_path / f"{family}_{size}_{count}_{seed}.npz")}
+
+
+def test_multi_spec_split_concatenates_families_and_sizes(tmp_path):
+    spec = [_spec(tmp_path, "asymmetric_clustered", 12, 2, 1),
+            _spec(tmp_path, "uniform", 20, 2, 2)]
+    instances = resolve_split(spec, ROOT, log=lambda *_: None)
+
+    assert len(instances) == 4
+    assert sorted({ins.n for ins in instances}) == [12, 20]
+    assert sorted({ins.meta["family"] for ins in instances}) == \
+        ["asymmetric_clustered", "uniform"]
+
+
+def test_multi_spec_split_keeps_names_unique(tmp_path):
+    """Two specs differing only by seed would otherwise collide on names."""
+    spec = [_spec(tmp_path, "uniform", 12, 2, 1), _spec(tmp_path, "uniform", 12, 2, 2)]
+    names = [ins.name for ins in resolve_split(spec, ROOT, log=lambda *_: None)]
+    assert len(names) == len(set(names)) == 4
+
+
+def test_single_spec_still_works_unwrapped(tmp_path):
+    one = _spec(tmp_path, "uniform", 12, 2, 3)
+    assert len(resolve_split(one, ROOT, log=lambda *_: None)) == 2
+    assert len(resolve_split([one], ROOT, log=lambda *_: None)) == 2
+
+
+def test_empty_split_is_rejected():
+    with pytest.raises(ValueError):
+        resolve_split([], ROOT, log=lambda *_: None)
+
+
+def test_describe_split_summarises_both_shapes():
+    single = {"source": "synthetic", "family": "uniform", "size": 50, "count": 8}
+    assert describe_split(single) == "uniform/n50x8"
+    mixed = [single, {"source": "synthetic", "family": "asymmetric_clustered",
+                      "size": 200, "count": 2}]
+    assert describe_split(mixed) == "uniform/n50x8+asymmetric_clustered/n200x2"
+    assert describe_split({"source": "tsplib"}) == "tsplib"

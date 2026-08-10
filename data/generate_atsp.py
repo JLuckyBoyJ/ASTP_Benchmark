@@ -40,15 +40,21 @@ from solvers.llm.EoH.atsp.data.synthetic import (  # noqa: E402
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 SYNTHETIC_DIR = os.path.join(REPO_ROOT, "data", "synthetic")
 
-#: (family, size, count, seed) — matches the defaults in configs/llm/EoH/*.yaml
+#: (family, size, count, seed, effort) — the union of every `data.train` entry
+#: in configs/llm/EoH/*.yaml. The four tasks deliberately share these files, so
+#: the reference-cost computation happens once rather than once per task.
 DEFAULT_SETS = [
-    ("uniform", 50, 8, 2024),   # construct
-    ("uniform", 50, 4, 2024),   # gls, rnr
-    ("uniform", 50, 3, 2024),   # aco
+    ("asymmetric_clustered", 50, 8, 2024, "medium"),    # all four tasks
+    ("uniform", 50, 8, 2024, "medium"),                 # construct
+    ("uniform", 50, 4, 2024, "medium"),                 # rnr
+    ("uniform", 50, 3, 2024, "medium"),                 # aco
+    ("asymmetric_clustered", 200, 4, 2024, "low"),      # large + correlated
+    ("uniform", 200, 4, 2024, "low"),                   # large + uncorrelated
 ]
 
 
-def build(family: str, size: int, count: int, seed: int, force: bool = False) -> str:
+def build(family: str, size: int, count: int, seed: int, force: bool = False,
+          effort: str = "medium") -> str:
     out_dir = os.path.join(SYNTHETIC_DIR, family)
     os.makedirs(out_dir, exist_ok=True)
     path = os.path.join(out_dir, dataset_filename(family, size, count, seed))
@@ -63,8 +69,9 @@ def build(family: str, size: int, count: int, seed: int, force: bool = False) ->
         print(f"    [{done:>3}/{total}] {instance.name}  "
               f"reference={instance.ref_cost:,.0f}")
 
-    print(f"  generating {count} x {family} n={size} (seed={seed})")
-    instances = generate_dataset(family, size, count, seed, progress=progress)
+    print(f"  generating {count} x {family} n={size} (seed={seed}, effort={effort})")
+    instances = generate_dataset(family, size, count, seed, effort=effort,
+                                 progress=progress)
     save_dataset(path, instances)
     print(f"  -> {os.path.relpath(path, REPO_ROOT)}  ({time.time() - started:.1f}s)")
     return path
@@ -79,15 +86,17 @@ def main(argv=None) -> int:
     parser.add_argument("--size", type=int, default=50, help="cities per instance")
     parser.add_argument("--count", type=int, default=8, help="number of instances")
     parser.add_argument("--seed", type=int, default=2024)
+    parser.add_argument("--effort", choices=["low", "medium", "high"], default="medium",
+                        help="reference-solver budget (bigger = tighter gaps, slower)")
     parser.add_argument("--force", action="store_true", help="overwrite existing files")
     args = parser.parse_args(argv)
 
     print("Synthetic ATSP generation")
     if args.all:
-        for family, size, count, seed in DEFAULT_SETS:
-            build(family, size, count, seed, args.force)
+        for family, size, count, seed, effort in DEFAULT_SETS:
+            build(family, size, count, seed, args.force, effort)
     else:
-        build(args.family, args.size, args.count, args.seed, args.force)
+        build(args.family, args.size, args.count, args.seed, args.force, args.effort)
     print("Done.")
     return 0
 

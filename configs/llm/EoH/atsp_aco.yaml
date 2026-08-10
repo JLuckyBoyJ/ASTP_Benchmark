@@ -1,13 +1,27 @@
 # Task 3 — Ant Colony Optimisation pheromone rule for ATSP.
 # EoH designs `update_pheromone` on a genuinely DIRECTED pheromone matrix.
 #
-#   python python_scripts/llm/EoH/run_eoh_atsp.py --config configs/llm/EoH/atsp_aco.yaml
+#   python python_scripts/llm/EoH/run_eoh_atsp.py --task aco
+#
+# Two design decisions, shared with atsp_gls.yaml:
+#
+# 1. MIXED TRAINING SET — the benchmark holds two structural regimes.
+#    `asymmetric_clustered` reproduces the ftv/kro instances
+#    (corr(d[i,j], d[j,i]) ~ 0.6-1.0); `uniform` reproduces the rbg ones
+#    (corr ~ 0.03). Training on one alone wins only half the benchmark.
+#
+# 2. WALL-CLOCK CAP. ACO's budget is otherwise purely iteration-based
+#    (n_ants x iter_max), so a pheromone rule costing O(n^2) per iteration is
+#    free during evolution and merely slow at benchmark time. `time_limit`
+#    caps each ACO run so the fitness measures tour quality per second.
+#    It is a cap, not a target: at these settings a run finishes in ~0.9 s at
+#    n=50 and ~4.8 s at n=200, so the cap only bites for expensive rules.
 
 extends: base.yaml
 
 task:
   name: aco
-  timeout: 240                # ant construction is the slow part
+  timeout: 600                # ant construction is the slow part
   params:
     n_ants: 20
     iter_max: 30
@@ -16,14 +30,15 @@ task:
     rho: 0.1
     n_runs: 1                 # independent ACO restarts per instance (>=2 is less noisy)
     seed: 2024
+    time_limit: 10.0          # wall-clock cap per ACO run (null = iterations only)
 
+# ~19 instances, roughly 50 s per heuristic evaluation.
 data:
   train:
-    source: synthetic
-    family: uniform
-    size: 50
-    count: 3
-    seed: 2024
+    - {source: synthetic, family: asymmetric_clustered, size: 50,  count: 8, seed: 2024, effort: medium}
+    - {source: synthetic, family: uniform,              size: 50,  count: 3, seed: 2024, effort: medium}
+    - {source: synthetic, family: asymmetric_clustered, size: 200, count: 4, seed: 2024, effort: low}
+    - {source: synthetic, family: uniform,              size: 200, count: 4, seed: 2024, effort: low}
 
 eval:
   params:
@@ -32,5 +47,17 @@ eval:
     alpha: 1.0
     beta: 2.0
     rho: 0.1
-    n_runs: 3
+    n_runs: 3                 # average 3 restarts: ACO is stochastic
     seed: 2024
+    time_limit: 30.0
+
+# ── recipes ───────────────────────────────────────────────────────────────────
+#
+# Cheaper pilot — small instances only:
+#   --set 'data.train=[{source: synthetic, family: asymmetric_clustered, size: 50, count: 8}]'
+#
+# Less noisy fitness (costs proportionally more time):
+#   --set task.params.n_runs=3
+#
+# Pure iteration budget, no wall-clock cap (the pre-2026 behaviour):
+#   --set task.params.time_limit=null

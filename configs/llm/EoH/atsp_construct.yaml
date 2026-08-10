@@ -2,7 +2,19 @@
 # EoH designs `select_next_node`, the rule that picks the next city while a
 # tour is built greedily from the depot.
 #
-#   python python_scripts/llm/EoH/run_eoh_atsp.py --config configs/llm/EoH/atsp_construct.yaml
+#   python python_scripts/llm/EoH/run_eoh_atsp.py --task construct
+#
+# MIXED TRAINING SET. TSPLIB ATSP is not one distribution: the ftv/kro
+# instances are near-symmetric with a directional perturbation
+# (corr(d[i,j], d[j,i]) ~ 0.6-1.0, reproduced by `asymmetric_clustered`),
+# while the rbg instances have essentially independent directions
+# (corr ~ 0.03, reproduced by `uniform`). Training on one family alone yields
+# a heuristic that wins on that half of the benchmark and loses on the other.
+#
+# A construction is O(n^2) and takes milliseconds even at n=200, so this task
+# can afford far more training instances than the search-based ones — 24 costs
+# about 0.1 s per heuristic evaluation. Use that budget: with the cheapest
+# evaluation of the four tasks, the only real risk here is overfitting.
 
 extends: base.yaml
 
@@ -13,17 +25,26 @@ task:
     n_candidates: 20          # cheapest outgoing arcs offered at each step
     start_node: 0
 
-# Evaluation is cheap here, so use more training instances than the other tasks.
 data:
   train:
-    source: synthetic
-    family: uniform
-    size: 50
-    count: 8
-    seed: 2024
+    - {source: synthetic, family: asymmetric_clustered, size: 50,  count: 8, seed: 2024, effort: medium}
+    - {source: synthetic, family: uniform,              size: 50,  count: 8, seed: 2024, effort: medium}
+    - {source: synthetic, family: asymmetric_clustered, size: 200, count: 4, seed: 2024, effort: low}
+    - {source: synthetic, family: uniform,              size: 200, count: 4, seed: 2024, effort: low}
 
 # Settings used when benchmarking on the held-out TSPLIB instances.
 eval:
   params:
     n_candidates: 20
     start_node: 0
+
+# ── recipes ───────────────────────────────────────────────────────────────────
+#
+# Single-family run, for an ablation on the training distribution:
+#   --set 'data.train=[{source: synthetic, family: uniform, size: 50, count: 8}]'
+#
+# Widen the candidate list the heuristic may choose from (a harder task):
+#   --set task.params.n_candidates=50
+#
+# Tune one entry of the mixed split in place (numeric path element = list index):
+#   --set data.train.0.count=16

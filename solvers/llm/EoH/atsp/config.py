@@ -63,6 +63,8 @@ DEFAULTS: dict[str, Any] = {
         "params": {},
     },
     "data": {
+        # A split is either one spec or a list of specs whose instances are
+        # concatenated (see atsp/data/registry.py).
         "train": {"source": "synthetic", "family": "uniform", "size": 50,
                   "count": 8, "seed": 2024, "effort": "medium", "path": None},
         "test": {"source": "tsplib", "dir": "data/raw/atsp",
@@ -183,18 +185,52 @@ def _coerce(text: str) -> Any:
 
 
 def apply_override(config: dict, assignment: str) -> dict:
-    """Apply a single ``a.b.c=value`` override in place."""
+    """Apply a single ``a.b.c=value`` override in place.
+
+    A numeric path element indexes into a list, so an entry of a multi-spec
+    data split can be targeted individually::
+
+        --set data.train.0.count=16      # first spec of the training split
+    """
     if "=" not in assignment:
         raise ValueError(f"--set expects key=value, got {assignment!r}")
     key, _, raw = assignment.partition("=")
-    node = config
     parts = key.strip().split(".")
-    for part in parts[:-1]:
-        node = node.setdefault(part, {})
+    value = _coerce(raw.strip())
+
+    node = config
+    for depth, part in enumerate(parts[:-1]):
+        nxt = parts[depth + 1]
+        if isinstance(node, list):
+            node = node[_list_index(node, part, assignment)]
+            continue
         if not isinstance(node, dict):
             raise ValueError(f"--set {assignment!r}: {part!r} is not a section")
-    node[parts[-1]] = _coerce(raw.strip())
+        if part not in node or node[part] is None:
+            node[part] = [] if nxt.lstrip("-").isdigit() else {}
+        node = node[part]
+
+    last = parts[-1]
+    if isinstance(node, list):
+        node[_list_index(node, last, assignment)] = value
+    elif isinstance(node, dict):
+        node[last] = value
+    else:
+        raise ValueError(f"--set {assignment!r}: {'.'.join(parts[:-1])!r} is not a section")
     return config
+
+
+def _list_index(node: list, part: str, assignment: str) -> int:
+    if not part.lstrip("-").isdigit():
+        raise ValueError(
+            f"--set {assignment!r}: {part!r} indexes a list, so it must be a number "
+            f"(list has {len(node)} entries)")
+    index = int(part)
+    if not -len(node) <= index < len(node):
+        raise ValueError(
+            f"--set {assignment!r}: index {index} is out of range "
+            f"(list has {len(node)} entries)")
+    return index
 
 
 def load_config(path: str, overrides: list[str] | None = None,
