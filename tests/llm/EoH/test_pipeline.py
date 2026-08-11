@@ -137,9 +137,10 @@ def test_evolution_produces_a_complete_run_directory(tmp_path, stub_llm, monkeyp
          "eoh.pop_size=2", "eoh.n_pop=1", "eoh.max_sample_nums=2",
          "eoh.n_parents=2", "eoh.num_samplers=1", "eoh.num_evaluators=1",
          "task.params.n_candidates=5", "task.timeout=30",
-         "data.train.size=15", "data.train.count=1",
-         "data.train.effort=low", "data.train.seed=99",
-         f"data.train.path={tmp_path / 'train.npz'}"])
+         # the shipped split is a list of specs; replace it wholesale with one
+         # tiny instance so the test stays fast
+         "data.train=[{source: synthetic, family: uniform, size: 15, count: 1, "
+         f"seed: 99, effort: low, path: '{tmp_path / 'train.npz'}'}}]"])
 
     summary = runner.evolve(config)
     run_dir = summary["run_dir"]
@@ -170,9 +171,9 @@ def test_smoke_mode_makes_no_llm_calls(tmp_path, stub_llm):
     config = load_config(
         os.path.join(ROOT, "configs", "llm", "EoH", "atsp_rnr.yaml"),
         [f"run.output_root={tmp_path}",
-         "data.train.size=15", "data.train.count=1", "data.train.effort=low",
          "task.params.iter_max=3", "task.params.time_limit=0.3",
-         f"data.train.path={tmp_path / 'train.npz'}"])
+         "data.train=[{source: synthetic, family: uniform, size: 15, count: 1, "
+         f"seed: 99, effort: low, path: '{tmp_path / 'train.npz'}'}}]"])
 
     summary = runner.smoke(config)
     assert summary["mode"] == "smoke"

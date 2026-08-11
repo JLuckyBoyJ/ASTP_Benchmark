@@ -35,7 +35,11 @@ DEFAULT_RUNS_ROOT = os.path.join("runs", "llm", "EoH")
 
 def build_report(runs_root: str, task: str | None = None) -> tuple[str, int]:
     rows = []
-    for filename in ("eval_test.json", "eval_test_baseline.json"):
+    # eval_test          — an evolved heuristic, one per finished run
+    # eval_test_baseline — EoH's hand-written reference heuristics
+    # eval_test_seed     — ReEvo's seed functions, its equivalent reference
+    for filename in ("eval_test.json", "eval_test_baseline.json",
+                     "eval_test_seed.json"):
         rows.extend(collect(runs_root, task, filename))
     if not rows:
         return "", 0

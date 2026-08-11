@@ -24,11 +24,13 @@ from evaluation.metrics import comparison_table  # noqa: E402
 def find_eval_files(runs_root: str, filename: str = "eval_test.json") -> list[str]:
     """Every evaluation file under ``runs_root``.
 
-    Covers both ``<task>/<run>/`` (evaluations attached to a run) and
-    ``eval/<task>/`` (standalone baseline evaluations).
+    Covers ``<task>/<run>/`` (evaluations attached to a run), ``eval/<task>/``
+    (standalone baseline evaluations) and ``<framework>/<task>/<run>/``, so
+    pointing this at ``runs/llm`` collects EoH and ReEvo into one table.
     """
     patterns = [os.path.join(runs_root, "*", "*", filename),
-                os.path.join(runs_root, "*", filename)]
+                os.path.join(runs_root, "*", filename),
+                os.path.join(runs_root, "*", "*", "*", filename)]
     found = {path for pattern in patterns for path in glob.glob(pattern)}
     return sorted(found)
 
@@ -54,6 +56,7 @@ def collect(runs_root: str, task: str | None = None,
         summary = payload.get("summary", {})
         rows.append({
             "task": payload.get("task"),
+            "framework": payload.get("framework"),
             "heuristic": payload.get("heuristic"),
             "model": payload.get("model"),
             "run_dir": payload.get("run_dir") or os.path.dirname(path),
@@ -73,7 +76,11 @@ def aggregate_by_task(rows: list[dict]) -> dict[str, dict]:
     """Mean / std / best of the test gap across repeated runs of each task."""
     buckets: dict[tuple[str, str], list[dict]] = defaultdict(list)
     for row in rows:
-        label = "baseline" if str(row.get("heuristic", "")).startswith("baseline") else "EoH"
+        # A hand-written baseline is a baseline whichever framework scored it;
+        # otherwise the row belongs to the framework that evolved the
+        # heuristic. Files written before the field existed came from EoH.
+        label = ("baseline" if str(row.get("heuristic", "")).startswith("baseline")
+                 else row.get("framework") or "EoH")
         buckets[(row["task"], label)].append(row)
 
     out: dict[str, dict] = {}
@@ -104,14 +111,19 @@ def summary_table(aggregated: dict[str, dict]) -> str:
 
 
 def per_instance_comparison(rows: list[dict], task: str) -> str:
-    """Instance-level EoH-vs-baseline table for a single task."""
+    """Instance-level table for a single task, one column per run.
+
+    Columns are named ``<framework> <run>``: a bare timestamp would not say
+    which framework produced it once EoH and ReEvo runs are in one table.
+    """
     by_method: dict[str, list[dict]] = {}
     for row in rows:
         if row["task"] != task:
             continue
         payload = load_eval(row["path"])
         label = ("baseline" if str(row.get("heuristic", "")).startswith("baseline")
-                 else os.path.basename(str(row["run_dir"])))
+                 else f"{row.get('framework') or 'EoH'} "
+                      f"{os.path.basename(str(row['run_dir']))}")
         by_method[label] = payload.get("records", [])
     if not by_method:
         return f"_no evaluated runs for task {task}_"

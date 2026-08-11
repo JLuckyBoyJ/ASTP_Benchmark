@@ -57,9 +57,9 @@ conda activate "${CONDA_ENV}" 2>/dev/null || true
 export OPENAI_API_KEY="${OPENAI_API_KEY:-}"
 export PYTHONUNBUFFERED=1
 
-python data/generate_atsp.py --all
+python3 data/generate_atsp.py --all
 
-python python_scripts/llm/EoH/run_eoh_atsp.py \\
+python3 python_scripts/llm/EoH/run_eoh_atsp.py \\
   --task ${task} \\
   --model ${MODEL} \\
   --tag "slurm\${SLURM_ARRAY_TASK_ID}" \\

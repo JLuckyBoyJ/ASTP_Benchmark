@@ -80,6 +80,10 @@ def load_instances(config: dict, split: str = "test", log=print):
 
 
 def write_results(out_dir: str, name: str, records: list[dict], meta: dict) -> dict:
+    # Which framework produced the heuristic. ReEvo's runner stamps its own;
+    # anything written here came from EoH. `stats_analysis` groups on this, so
+    # a merged table keeps the two apart instead of calling everything "EoH".
+    meta = {"framework": "EoH", **meta}
     os.makedirs(out_dir, exist_ok=True)
     csv_path = os.path.join(out_dir, f"{name}.csv")
     with open(csv_path, "w", newline="", encoding="utf-8") as fh:

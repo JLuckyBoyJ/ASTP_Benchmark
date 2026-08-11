@@ -68,7 +68,44 @@ the training instances — lower is better — as in the paper's TSP experiment.
 
 ---
 
-## 3. Install
+## 3. Results so far
+
+Mean optimality gap over all 19 TSPLIB ATSP instances, gpt-4o-mini, one run per
+task at the default evolution budget (220 LLM calls). Lower is better.
+
+| task | baseline | EoH | notes |
+|---|---:|---:|---|
+| `gls` | 3.01 % | **1.57 %** | 9 of 19 instances solved to proven optimality |
+| `rnr` | 4.85 % | **4.68 %** | marginal |
+| `construct` | 35.77 % | **32.31 %** | modest; greedy construction has little room |
+| `aco` | 63.38 % | **12.23 %** | large, but Ant System is a weak baseline |
+
+The `gls` number is the one worth taking seriously — the Voudouris–Tsang
+penalty is a tuned, 25-year-old published algorithm, and it was beaten by ~2x.
+
+**Training distribution decides the outcome.** That 1.57 % came from a run
+trained on `asymmetric_clustered`; an otherwise identical run trained on
+`uniform` scored **5.52 %**, i.e. *worse* than the baseline. Splitting the test
+set by how much the two arc directions agree explains it:
+
+| group | corr(d[i,j], d[j,i]) | EoH | baseline |
+|---|---|---:|---:|
+| `br17`, `ftv*`, `p43`, `ry48p`, `kro124p` (13) | 0.62 – 1.00 | **0.60 %** | 2.54 % |
+| `ft53`, `ft70`, `rbg*` (6) | −0.28 – 0.05 | 3.69 % | 4.03 % |
+
+The clustered-trained rule wins or ties all 13 correlated instances (including
+`ftv170` at n=171) and loses on the four `rbg*` ones, whose structure is
+`uniform`-like. Hence the mixed training splits now shipped for all four tasks —
+see §6.
+
+**Caveats.** One seed per task; the previous `gls` run stalled at sample #62
+while the clustered one was still improving at #107, so run-to-run variance is
+large. Report over ≥3 seeds (`REPEATS=3 bash scripts/llm/EoH/run_all.sh`) before
+treating any of these as a result.
+
+---
+
+## 4. Install
 
 Python ≥ 3.10.
 
@@ -91,7 +128,7 @@ python data/generate_atsp.py --all
 
 ---
 
-## 4. Run — full command reference
+## 5. Run — full command reference
 
 All commands are run **from the repository root**.
 
@@ -102,7 +139,7 @@ bash scripts/llm/EoH/smoke.sh                # verify the install — no LLM cal
 REPEATS=3 bash scripts/llm/EoH/run_all.sh    # evolve 4 tasks x 3 seeds, benchmark, tabulate
 ```
 
-### 4.1 Check the install (free — no LLM calls)
+### 5.1 Check the install (free — no LLM calls)
 
 ```bash
 pytest tests -q                                              # whole suite
@@ -119,20 +156,26 @@ python python_scripts/llm/EoH/run_eoh_atsp.py --task rnr       --smoke
 real engine and writes a normal run directory. It is the fastest way to see how
 long one evaluation will take before spending any tokens.
 
-### 4.2 Training instances (optional)
+### 5.2 Training instances (optional)
 
 A run generates and caches whatever it needs on first use, so this is only a
 pre-warm. Do run it before launching parallel or Slurm jobs so several runs
 don't race to build the same cache file.
 
 ```bash
-python data/generate_atsp.py --all                  # every set the configs reference
-python data/generate_atsp.py --family uniform --size 100 --count 64 --seed 2024
-python data/generate_atsp.py --family asymmetric_clustered --size 50 --count 8
+python data/generate_atsp.py --all                  # the six sets the four configs share (~5 min)
+python data/generate_atsp.py --family asymmetric_clustered --size 100 --count 64 --effort low
 python data/generate_atsp.py --all --force          # recompute from scratch
 ```
 
-### 4.3 Baselines — the numbers EoH has to beat
+`--all` builds one cache per `(family, size, count, seed)`; the four task
+configs deliberately reference the *same* six datasets, so the expensive
+reference-cost computation happens once rather than once per task. `--effort`
+trades reference quality for speed (`low` / `medium` / `high`) — a weak
+reference makes training gaps look small and can even go negative once a
+heuristic beats it.
+
+### 5.3 Baselines — the numbers EoH has to beat
 
 ```bash
 python python_scripts/llm/EoH/eval_eoh_atsp.py --task construct --baseline
@@ -143,7 +186,7 @@ python python_scripts/llm/EoH/eval_eoh_atsp.py --task rnr       --baseline
 python python_scripts/llm/EoH/run_benchmarks.py --baselines-only        # all four at once
 ```
 
-### 4.4 Evolve (needs `OPENAI_API_KEY` in `envs/.env`)
+### 5.4 Evolve (needs `OPENAI_API_KEY` in `envs/.env`)
 
 ```bash
 python python_scripts/llm/EoH/run_eoh_atsp.py --task construct --tag run1
@@ -203,7 +246,7 @@ python python_scripts/llm/EoH/run_eoh_atsp.py --task gls \
   --set eoh.continue_id=7
 ```
 
-### 4.5 Benchmark on the held-out TSPLIB ATSP set
+### 5.5 Benchmark on the held-out TSPLIB ATSP set
 
 ```bash
 # the winner of one finished run
@@ -224,7 +267,7 @@ python python_scripts/llm/EoH/run_benchmarks.py
 bash scripts/llm/EoH/benchmark.sh                        # eval + tables in one go
 ```
 
-### 4.6 Tables
+### 5.6 Tables
 
 ```bash
 python python_scripts/llm/EoH/generate_paper_tables.py     # -> runs/llm/EoH/benchmark_tables.md
@@ -233,7 +276,7 @@ python python_scripts/llm/EoH/generate_paper_tables.py           # -> runs/bench
 python python_scripts/llm/EoH/generate_paper_tables.py --out paper/supplementary/results.md
 ```
 
-### 4.7 Cluster
+### 5.7 Cluster
 
 ```bash
 REPEATS=3 bash scripts/llm/EoH/submit_slurm.sh
@@ -241,7 +284,7 @@ DRY_RUN=1 bash scripts/llm/EoH/submit_slurm.sh           # print the sbatch scri
 TASKS="gls" PARTITION=cpu TIME=08:00:00 CPUS=16 bash scripts/llm/EoH/submit_slurm.sh
 ```
 
-### 4.8 Inspect a run
+### 5.8 Inspect a run
 
 ```bash
 RUN=runs/llm/EoH/gls/20260810-142500_run1
@@ -257,14 +300,29 @@ column -s, -t < $RUN/eval_test.csv             # per-instance benchmark result
 
 ### Cost and wall time
 
-One run at the shipped defaults is `2 x pop_size` initial samples plus
-`n_pop x pop_size` evolution samples — **220 LLM calls** — and takes roughly
-5–15 minutes depending on the task and API latency. All four tasks with three
-seeds is an afternoon. The paper-scale GLS configuration is hours, not minutes.
+One run is `2 × pop_size` initial samples plus `n_pop × pop_size` evolution
+samples — **220 LLM calls** — regardless of task. What differs is how long one
+*evaluation* takes, which is `Σ(count) × time_limit` over the training split:
+
+| task | training instances | per evaluation | one run |
+|---|---:|---:|---:|
+| `construct` | 24 | ~0.1 s | ~10 min (LLM-bound) |
+| `rnr` | 20 | ~40 s | ~40 min |
+| `aco` | 19 | ~50 s | ~50 min |
+| `gls` | 16 | ~80 s | ~75 min |
+
+With `num_evaluators: 4` those evaluations overlap, so the wall clock is roughly
+`220/4 × per-evaluation` plus LLM latency. All four tasks × three seeds is
+most of a day. Paper-scale `gls` (64 × n=100 × 60 s) is days, not hours — the
+authors used numba for that.
+
+To shrink a run: lower `time_limit` first, `data.train.*.count` second, and
+`eoh.n_pop` last. Cutting `count` is the one most likely to cost you
+generalization.
 
 ---
 
-## 5. Data protocol
+## 6. Data protocol
 
 The paper evolves on 64 randomly generated TSP100 instances and reports on
 held-out benchmarks. The same split is used here:
@@ -278,23 +336,38 @@ held-out benchmarks. The same split is used here:
 
 No benchmark instance is ever seen during evolution.
 
-**Choose the training family deliberately — it decides what EoH can learn.**
-The benchmark contains two structurally different regimes, separated by how
-much the two directions of an arc agree:
+### Mixed training splits
 
-| | corr(d[i,j], d[j,i]) | reproduced by |
-|---|---|---|
-| `br17`, `ftv*`, `p43`, `ry48p`, `kro124p` (13 instances) | 0.62 – 1.00 | `asymmetric_clustered` |
-| `ft53`, `ft70`, `rbg*` (6 instances) | −0.28 – 0.05 | `uniform` |
+`data.train` takes either one spec or a **list** of specs, concatenated:
 
-Measured on one `gls` run trained only on `asymmetric_clustered`: 0.60 % mean
-gap on the 13 correlated instances, 3.69 % on the 6 uncorrelated ones. The
-same run trained only on `uniform` produced a rule that penalised a single
-direction — because on uncorrelated data the reverse arc carries no
-information — and scored 5.52 % overall. **All four task configs therefore
-ship a mixed split** covering both regimes and both size ranges, and the four
-tasks share the same cached datasets so `data/generate_atsp.py --all` builds
-them once.
+```yaml
+data:
+  train:
+    - {source: synthetic, family: asymmetric_clustered, size: 50,  count: 8, effort: medium}
+    - {source: synthetic, family: asymmetric_clustered, size: 200, count: 4, effort: low}
+    - {source: synthetic, family: uniform,              size: 200, count: 4, effort: low}
+```
+
+All four task configs ship a mixed split, for two measured reasons.
+
+**Two structural regimes.** §3 showed a clustered-trained rule scoring 0.60 %
+on the 13 correlated instances and 3.69 % on the 6 uncorrelated ones. The two
+synthetic families reproduce the two regimes — `asymmetric_clustered` builds a
+symmetric Euclidean backbone and distorts it per-city, keeping
+corr(d[i,j], d[j,i]) ≈ 0.65; `uniform` draws every arc independently, giving
+≈ 0.03. Train on one and you win half the benchmark.
+
+**Cost is only priced in when the clock binds.** With an iteration cap, an
+update rule costing O(n²) per call is free at n=50 and ruinous at n=443:
+measured, the classic GLS penalty completes 606 iterations in 3 s at n=50 but
+only 81 at n=200. So `gls` and `rnr` set `ite_max`/`iter_max` to 10⁶ and let
+`time_limit` be the only budget, `aco` gained a `time_limit` cap for the same
+reason, and every split includes n=200 instances so the search feels the cost
+of what it designs.
+
+The four tasks reference the same six cached datasets, so
+`data/generate_atsp.py --all` builds them once. A test enforces that: a train
+entry missing from `DEFAULT_SETS` fails the suite.
 
 **Reference costs.** A gap needs a denominator. TSPLIB instances have proven
 optima (`ref_kind="optimal"`). Synthetic instances are scored against
@@ -305,7 +378,7 @@ reference on any machine. Every table states which kind it used.
 
 ---
 
-## 6. Layout
+## 7. Layout
 
 The ATSP layer is split into small modules, and the same `llm/EoH` path is
 mirrored in every top-level folder of the repository.
@@ -339,7 +412,7 @@ solvers/llm/EoH/
 
 ---
 
-## 7. Logging
+## 8. Logging
 
 Every run — including `--smoke` — creates
 `runs/llm/EoH/<task>/<timestamp>[_tag]/`:
@@ -365,7 +438,7 @@ jq -r .operator $RUN/llm_calls.jsonl | sort | uniq -c
 
 ---
 
-## 8. Settings
+## 9. Settings
 
 Defaults follow the paper's TSP configuration: 20 generations, population 10,
 5 parents for E1/E2, operators `e1 e2 m1 m2`. Per-evaluation budgets are set
@@ -398,19 +471,36 @@ expect most of those draws to be discarded until the prompt is patched.
 
 ---
 
-## 9. Extending
+## 10. Extending
 
 *A new task*: subclass `ATSPProblem` in `atsp/problems/`, give it a
 `template_program`, a `task_description`, a `solve_instance`, register it in
 `atsp/registry.py`, add `configs/llm/EoH/atsp_<task>.yaml` and a baseline in
 `atsp/baselines.py`.
 
-*A new instance family*: add a generator to `atsp/data/synthetic.py` and list it
-in `FAMILIES`.
+*A new instance family*: add a generator to `atsp/data/synthetic.py`, list it in
+`FAMILIES`, and add it to `DEFAULT_SETS` in `data/generate_atsp.py` so
+`--all` pre-builds it.
 
 *A different LLM*: any OpenAI-compatible endpoint works —
 `--set llm.api_endpoint=api.deepseek.com --set llm.model=deepseek-chat` — or a
 local server via `llm.use_local` and `llm.local_url`.
+
+### Known rough edges
+
+* **`m3` wastes its draws.** See §9 — 12 of 13 `m3` samples were discarded in
+  one run because the vendored prompt never asks for the description that
+  `_call_llm` requires. Fixable by wrapping `Evolution._build_prompt` the way
+  `llm_trace.py` wraps the LLM interface, leaving the vendored file untouched.
+* **Aggregation conflates configurations.** `generate_paper_tables.py` buckets
+  every non-baseline run of a task into one "EoH" row and reports mean ± std,
+  which assumes repeated *seeds*. Two runs of the same task with different
+  training splits get averaged together; read the per-instance section instead,
+  or tag the runs and compare their `eval_test.json` directly.
+* **No exact reference for synthetic instances.** Upstream had Concorde for
+  symmetric TSP; there is no exact ATSP solver in this stack, so training gaps
+  are measured against a strong heuristic and can go negative. LKH-3 would
+  close this (`solvers/heuristics/lkh3.py` is still a placeholder).
 
 ---
 
@@ -426,5 +516,6 @@ local server via `llm.use_local` and `llm.local_url`.
 }
 ```
 
-Upstream project: <https://github.com/FeiLiu36/EoH> (MIT). The vendored
-framework is unmodified; all ATSP-specific code lives in `atsp/`.
+Upstream project: <https://github.com/FeiLiu36/EoH>, released under the **MIT
+License** (Copyright © Fei Liu). The `eoh/` package here is redistributed
+unmodified under that licence; all ATSP-specific code lives in `atsp/`.

@@ -1,0 +1,10 @@
+# Black-box view of the ACO task: the LLM sees only edge attributes and never
+# learns that the problem is a routing problem. ReEvo's paper reports both the
+# white-box and black-box settings; this is the ATSP version of the latter.
+problem_name: atsp_aco
+problem_type: black_box
+obj_type: min
+problem_size: 0 # 0 = the whole mixed training split; see atsp_gls.yaml
+timeout: 600    # same engine and budget as the white-box ACO task
+func_name: heuristics
+description: Solving a black-box graph combinatorial optimization problem via stochastic solution sampling following "heuristics".

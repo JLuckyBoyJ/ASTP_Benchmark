@@ -8,7 +8,9 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 cd "$REPO_ROOT"
 
-PYTHON="${PYTHON:-python}"
+# Prefer python3: macOS and most Linux distros ship no bare `python`.
+PYTHON="${PYTHON:-$(command -v python3 || command -v python || true)}"
+if [[ -z "$PYTHON" ]]; then echo "no python interpreter found" >&2; exit 1; fi
 
 echo "--- unit tests -----------------------------------------------"
 $PYTHON -m pytest tests -q

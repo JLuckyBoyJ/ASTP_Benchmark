@@ -13,18 +13,25 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 cd "$REPO_ROOT"
 
-# Secrets and machine-local defaults (git-ignored; see envs/.env.example)
+# Secrets and machine-local defaults (git-ignored; see envs/.env.example).
+# The same file is sourced by the ReEvo scripts, so a `TASKS=` or `PYTHON=`
+# left in it would leak across frameworks: remember what the caller asked for,
+# source the file for its secrets, then restore the caller's values.
+_TASKS="${TASKS:-}"; _REPEATS="${REPEATS:-}"; _MODEL="${MODEL:-}"; _PYTHON="${PYTHON:-}"
 ENV_FILE="${ENV_FILE:-envs/.env}"
 if [[ -f "$ENV_FILE" ]]; then
   set -a; source "$ENV_FILE"; set +a
   echo "loaded $ENV_FILE"
 fi
 
-TASKS="${TASKS:-construct gls aco rnr}"
-REPEATS="${REPEATS:-1}"
-MODEL="${MODEL:-gpt-4o-mini}"
+TASKS="${_TASKS:-construct gls aco rnr}"
+REPEATS="${_REPEATS:-1}"
+MODEL="${_MODEL:-gpt-4o-mini}"
+PYTHON="${_PYTHON:-}"
 SMOKE="${SMOKE:-0}"
-PYTHON="${PYTHON:-python}"
+# Prefer python3: macOS and most Linux distros ship no bare `python`.
+PYTHON="${PYTHON:-$(command -v python3 || command -v python || true)}"
+if [[ -z "$PYTHON" ]]; then echo "no python interpreter found" >&2; exit 1; fi
 
 RUN="python_scripts/llm/EoH/run_eoh_atsp.py"
 

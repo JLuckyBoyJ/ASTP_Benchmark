@@ -1,0 +1,12 @@
+# ATSP ant colony optimisation: the LLM designs the heuristic (desirability)
+# matrix; the pheromone update is fixed Ant System, deposited on directed arcs.
+problem_name: atsp_aco
+problem_type: aco
+obj_type: min
+problem_size: 0 # 0 = the whole mixed training split; see atsp_gls.yaml
+# ~23 s per evaluation with the seed heuristic (0.5 s at n=50, 2.4 s at n=200),
+# but the 10 s per-instance cap allows 160 s for an expensive pheromone rule.
+# Matches configs/llm/EoH/atsp_aco.yaml.
+timeout: 600
+func_name: heuristics
+description: Solving the Asymmetric Traveling Salesman Problem (ATSP) via stochastic solution sampling with ant colony optimization. ATSP requires finding the shortest closed tour that visits every city once and returns to the start, where the cost of travelling from city i to city j differs from the cost of travelling from j to i.

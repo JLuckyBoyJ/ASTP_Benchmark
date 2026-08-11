@@ -1,0 +1,11 @@
+# ATSP greedy construction: the LLM designs the next-city selection rule.
+problem_name: atsp_constructive
+problem_type: constructive
+obj_type: min
+problem_size: 0 # 0 = the whole mixed training split; see atsp_gls.yaml
+# One greedy pass per instance: ~2 s in total. The rule is called n-1 times per
+# instance, so the deadline only bites on a pathological one. Matches
+# configs/llm/EoH/atsp_construct.yaml.
+timeout: 60
+func_name: select_next_node
+description: Solving the Asymmetric Traveling Salesman Problem (ATSP) by constructing a tour step by step. ATSP requires finding the shortest closed tour that visits every city once and returns to the start, where the cost of travelling from city i to city j differs from the cost of travelling from j to i.

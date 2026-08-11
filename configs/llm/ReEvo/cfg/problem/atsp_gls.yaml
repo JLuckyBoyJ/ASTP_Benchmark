@@ -1,0 +1,16 @@
+# ATSP guided local search: the LLM designs a static "arc badness" guide matrix.
+# Direct counterpart of ReEvo's tsp_gls, and of EoH's `gls` task on the same
+# engines and data, so the two frameworks are directly comparable.
+problem_name: atsp_gls
+problem_type: gls
+obj_type: min
+# 0 = train on the whole mixed split (8x n=50 + 8x n=200; see atsp_utils.py).
+# Upstream uses this to pick one dataset size, but filtering to n=50 alone is
+# exactly the failure mode measured on the EoH side: a heuristic tuned on small
+# instances collapses at n>100, where half the TSPLIB benchmark lives.
+problem_size: 0
+# 16 instances x 5 s of guided local search = ~80 s per evaluation; the kill
+# threshold matches configs/llm/EoH/atsp_gls.yaml.
+timeout: 300
+func_name: heuristics
+description: Solving the Asymmetric Traveling Salesman Problem (ATSP) via guided local search. ATSP requires finding the shortest closed tour that visits every city once and returns to the start, where the cost of travelling from city i to city j differs from the cost of travelling from j to i.
