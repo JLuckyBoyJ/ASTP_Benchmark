@@ -55,13 +55,26 @@ mcts_ahd:
     atsp_kgls:         configs/llm/MCTS-AHD/cfg/evaluation/atsp_kgls.yaml
     atsp_aco:          configs/llm/MCTS-AHD/cfg/evaluation/atsp_aco.yaml
 
+hsevo:
+  implementation: solvers/llm/HSEvo
+  entry_point: solvers/llm/HSEvo/main.py
+  run_script: python_scripts/llm/HSEvo/run_hsevo_atsp.py
+  eval_script: python_scripts/llm/HSEvo/eval_hsevo_atsp.py
+  data_script: python_scripts/llm/HSEvo/prepare_data.py
+  config_root: configs/llm/HSEvo/cfg
+  default_model: gpt-4o-mini
+  configs:
+    atsp_constructive: configs/llm/HSEvo/cfg/problem/atsp_constructive.yaml
+    atsp_gls:          configs/llm/HSEvo/cfg/problem/atsp_gls.yaml
+    atsp_aco:          configs/llm/HSEvo/cfg/problem/atsp_aco.yaml
+
 # Which framework covers which task. Empty cells are not gaps to be filled:
 # EoH's `rnr` has no ReEvo/MCTS-AHD counterpart because neither upstream ships
 # a ruin-and-recreate task, and `aco_black_box` is specific to ReEvo's paper.
 task_coverage:
-  greedy_construction:            [eoh, reevo, mcts_ahd]
-  guided_local_search:            [eoh, reevo, mcts_ahd]
+  greedy_construction:            [eoh, reevo, mcts_ahd, hsevo]
+  guided_local_search:            [eoh, reevo, mcts_ahd, hsevo]
   knowledge_guided_local_search:  [mcts_ahd]
-  ant_colony_optimisation:        [eoh, reevo, mcts_ahd]
+  ant_colony_optimisation:        [eoh, reevo, mcts_ahd, hsevo]
   ruin_and_recreate:              [eoh]
   aco_black_box:                  [reevo]

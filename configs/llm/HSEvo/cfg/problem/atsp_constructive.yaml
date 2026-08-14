@@ -1,0 +1,8 @@
+# ATSP greedy construction heuristic for HSEvo
+problem_name: atsp_constructive
+problem_type: constructive
+obj_type: min
+problem_size: 0
+timeout: 60
+func_name: select_next_node
+description: Solving the Asymmetric Traveling Salesman Problem (ATSP) via greedy construction. ATSP requires finding the shortest closed tour that visits every city once and returns to the start, where the cost of travelling from city i to city j differs from the cost of travelling from j to i.

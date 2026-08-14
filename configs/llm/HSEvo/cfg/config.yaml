@@ -1,0 +1,35 @@
+defaults:
+  - _self_
+  - problem: atsp_gls
+  - llm_client: openai
+  - override hydra/output: local
+
+hydra:
+  job:
+    name: ${problem.problem_name}-${problem.problem_type}
+    chdir: True
+
+# The chosen algorithm
+algorithm: hsevo
+
+# LLM parameters
+model: gpt-4o-mini
+temperature: 1.0
+max_tokens: 32768
+enable_thinking: true
+n_parallel: 8
+
+# Main GA loop parameters
+max_fe: 100
+pop_size: 10
+init_pop_size: 30
+mutation_rate: 0.5
+timeout: ${problem.timeout}
+
+# Harmony search parameters
+seed: 2026
+hm_size: 5
+hmcr: 0.7
+par: 0.5
+bandwidth: 0.2
+max_iter: 5

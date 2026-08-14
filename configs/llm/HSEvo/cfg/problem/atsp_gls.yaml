@@ -1,0 +1,8 @@
+# ATSP guided local search: static "arc badness" guide matrix for HSEvo
+problem_name: atsp_gls
+problem_type: gls
+obj_type: min
+problem_size: 0
+timeout: 300
+func_name: heuristics
+description: Solving the Asymmetric Traveling Salesman Problem (ATSP) via guided local search. ATSP requires finding the shortest closed tour that visits every city once and returns to the start, where the cost of travelling from city i to city j differs from the cost of travelling from j to i.
