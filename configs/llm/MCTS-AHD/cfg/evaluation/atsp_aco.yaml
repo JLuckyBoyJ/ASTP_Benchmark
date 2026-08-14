@@ -1,0 +1,26 @@
+# Engine budget for ant colony optimisation.
+#
+# Read by problems/atsp_aco/eval.py through atsp_utils.budget(). Matches
+# solvers/llm/ReEvo/problems/atsp_aco/eval.py so the two frameworks' ACO
+# heuristics are comparable.
+name: atsp_aco
+description: Ant System with a fixed pheromone update and an LLM-designed desirability matrix.
+
+n_ants: 20
+seed: 2024        # the ant colony's RNG, so one heuristic scores the same twice
+
+train:
+  # ACO is stochastic, so a wall-clock cap would make the score depend on how
+  # many iterations happened to fit. Iterations it is, and few of them: 30
+  # iterations x 20 ants x n construction steps is already the dominant cost of
+  # an evaluation at n=403.
+  n_iterations: 30
+  time_limit: null
+
+val:
+  n_iterations: 50
+  time_limit: 30.0
+
+test:
+  n_iterations: 50
+  time_limit: 30.0

@@ -1,0 +1,28 @@
+# Engine budget for guided local search.
+#
+# Read by problems/atsp_gls/eval.py through atsp_utils.budget().
+# Identical to solvers/llm/ReEvo/problems/atsp_gls/eval.py, so a heuristic
+# evolved by either framework is scored under the same conditions.
+name: atsp_gls
+description: Guided local search with a static LLM-designed guide matrix.
+
+perturbation_moves: 30
+
+train:
+  # `auto` = as many iterations as `equivalent_seconds` of search buys on this
+  # instance size, from data/cache/gls_calibration.json (regenerate with
+  # scripts/llm/MCTS-AHD/calibrate.sh). Training is bounded by ITERATIONS
+  # rather than wall clock so a candidate's score does not depend on machine
+  # load — but the iteration count is chosen to spend the benchmark's budget,
+  # because a guide evolved under a shorter search loses at the longer one.
+  iter_limit: auto
+  equivalent_seconds: 10.0
+  time_limit: null
+
+val:
+  iter_limit: 1000
+  time_limit: 10.0
+
+test:
+  iter_limit: 1000
+  time_limit: 10.0

@@ -1,12 +1,13 @@
 # LLM-based solvers.
 #
-# EoH (Evolution of Heuristics, ICML 2024) is configured per task under
-# configs/llm/EoH/. This file only records which solvers exist and where their
+# Each family is configured per task under configs/llm/<family>/. This file
+# records which solvers exist, how they are launched, and where their
 # configuration lives, so the benchmark driver can enumerate them.
 
 eoh:
   implementation: solvers/llm/EoH
   entry_point: python_scripts/llm/EoH/run_eoh_atsp.py
+  eval_script: python_scripts/llm/EoH/eval_eoh_atsp.py
   default_model: gpt-4o-mini
   configs:
     construct: configs/llm/EoH/atsp_construct.yaml
@@ -16,4 +17,51 @@ eoh:
 
 reevo:
   implementation: solvers/llm/ReEvo
-  status: not_implemented
+  # Hydra entry point; must be launched from its own directory.
+  entry_point: solvers/llm/ReEvo/main.py
+  eval_script: python_scripts/llm/ReEvo/eval_reevo_atsp.py
+  config_root: configs/llm/ReEvo/cfg
+  default_model: gpt-4o-mini
+  configs:
+    atsp_constructive:   configs/llm/ReEvo/cfg/problem/atsp_constructive.yaml
+    atsp_gls:            configs/llm/ReEvo/cfg/problem/atsp_gls.yaml
+    atsp_aco:            configs/llm/ReEvo/cfg/problem/atsp_aco.yaml
+    atsp_aco_black_box:  configs/llm/ReEvo/cfg/problem/atsp_aco_black_box.yaml
+
+mcts_ahd:
+  implementation: solvers/llm/MCTS-AHD
+  # Hydra entry point; must be launched from its own directory. Use the wrapper
+  # below to launch it from the repository root instead.
+  entry_point: solvers/llm/MCTS-AHD/main.py
+  run_script: python_scripts/llm/MCTS-AHD/run_mcts_ahd_atsp.py
+  eval_script: python_scripts/llm/MCTS-AHD/eval_mcts_ahd_atsp.py
+  data_script: python_scripts/llm/MCTS-AHD/prepare_data.py
+  config_root: configs/llm/MCTS-AHD/cfg
+  default_model: gpt-4o-mini
+  configs:
+    atsp_constructive: configs/llm/MCTS-AHD/cfg/problem/atsp_constructive.yaml
+    atsp_gls:          configs/llm/MCTS-AHD/cfg/problem/atsp_gls.yaml
+    atsp_kgls:         configs/llm/MCTS-AHD/cfg/problem/atsp_kgls.yaml
+    atsp_aco:          configs/llm/MCTS-AHD/cfg/problem/atsp_aco.yaml
+  # Unlike the other two families, the data split and the per-task engine
+  # budgets are configuration rather than constants in the evaluation scripts.
+  data_configs:
+    tsplib:          configs/llm/MCTS-AHD/cfg/data/tsplib.yaml
+    synthetic:       configs/llm/MCTS-AHD/cfg/data/synthetic.yaml
+    mcts_ahd_native: configs/llm/MCTS-AHD/cfg/data/mcts_ahd_native.yaml
+  evaluation_budgets:
+    atsp_constructive: configs/llm/MCTS-AHD/cfg/evaluation/atsp_constructive.yaml
+    atsp_gls:          configs/llm/MCTS-AHD/cfg/evaluation/atsp_gls.yaml
+    atsp_kgls:         configs/llm/MCTS-AHD/cfg/evaluation/atsp_kgls.yaml
+    atsp_aco:          configs/llm/MCTS-AHD/cfg/evaluation/atsp_aco.yaml
+
+# Which framework covers which task. Empty cells are not gaps to be filled:
+# EoH's `rnr` has no ReEvo/MCTS-AHD counterpart because neither upstream ships
+# a ruin-and-recreate task, and `aco_black_box` is specific to ReEvo's paper.
+task_coverage:
+  greedy_construction:            [eoh, reevo, mcts_ahd]
+  guided_local_search:            [eoh, reevo, mcts_ahd]
+  knowledge_guided_local_search:  [mcts_ahd]
+  ant_colony_optimisation:        [eoh, reevo, mcts_ahd]
+  ruin_and_recreate:              [eoh]
+  aco_black_box:                  [reevo]

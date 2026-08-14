@@ -1,0 +1,12 @@
+# ATSP knowledge-guided local search (Arnold & Sorensen, C&OR 2019): the LLM
+# designs a DYNAMIC arc-badness rule that sees the current tour and the penalty
+# history, not just the cost matrix. Same engine budget as atsp_gls, so the
+# difference between the two tasks is the design space, not the search time.
+problem_name: atsp_kgls
+problem_type: kgls
+obj_type: min
+problem_size: 0
+timeout: 300
+func_name: arc_badness
+use_external_knowledge: true
+description: Solving the Asymmetric Traveling Salesman Problem (ATSP) via knowledge-guided local search. ATSP requires finding the shortest closed tour that visits every city once and returns to the start, where the cost of travelling from city i to city j differs from the cost of travelling from j to i. The search repeatedly penalises one arc of the current tour and re-optimises around it; the heuristic function decides which arc that is, and may use any knowledge it can derive from the cost matrix, the current tour and the penalties applied so far.

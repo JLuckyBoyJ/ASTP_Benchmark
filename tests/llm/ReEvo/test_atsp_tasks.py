@@ -5,6 +5,7 @@ symmetric TSP (2-opt reversal, pheromone deposited on both directions), so these
 are the checks that would catch a regression back to the symmetric assumptions.
 """
 
+import importlib.util
 import os
 import subprocess
 import sys
@@ -15,10 +16,14 @@ import yaml
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 REEVO = os.path.join(ROOT, "solvers", "llm", "ReEvo")
-for _p in (ROOT, REEVO, os.path.join(REEVO, "problems", "atsp_gls"),
-           os.path.join(REEVO, "problems", "atsp_aco")):
-    if _p not in sys.path:
-        sys.path.insert(0, _p)
+if "atsp_utils" in sys.modules:
+    del sys.modules["atsp_utils"]
+for _p in (os.path.join(REEVO, "problems", "atsp_aco"),
+           os.path.join(REEVO, "problems", "atsp_gls"),
+           REEVO, ROOT):
+    if _p in sys.path:
+        sys.path.remove(_p)
+    sys.path.insert(0, _p)
 
 from evaluation.llm.ReEvo.benchmark_runner import (  # noqa: E402
     TASKS,
@@ -111,6 +116,14 @@ def test_the_two_atsp_copies_have_not_drifted():
                            shallow=False), f"atsp/data/{name} has drifted"
 
 
+def _get_reevo_atsp_utils():
+    path = os.path.join(REEVO, "atsp_utils.py")
+    spec = importlib.util.spec_from_file_location("reevo_atsp_utils_mod", path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
 @pytest.mark.parametrize("task", ALL_TASKS)
 def test_training_uses_the_whole_split(task):
     """The configured `problem_size` must not quietly shrink the training set.
@@ -120,7 +133,8 @@ def test_training_uses_the_whole_split(task):
     instances only — the overfitting that cost the EoH side a third of the
     benchmark — so the ATSP configs set 0, meaning "the whole split".
     """
-    from atsp_utils import TRAIN_SPLIT, load_instances
+    atsp_utils = _get_reevo_atsp_utils()
+    load_instances = atsp_utils.load_instances
 
     unfiltered = load_instances("train", 0)
     configured = load_instances("train", problem_cfg(task)["problem_size"])
@@ -135,7 +149,8 @@ def test_held_out_instances_are_not_trained_on():
     ranked heuristics the way the target does. That is defensible only while
     the reported claim rests on instances the search never saw.
     """
-    from atsp_utils import load_instances
+    atsp_utils = _get_reevo_atsp_utils()
+    load_instances = atsp_utils.load_instances
 
     seen = {i.name for i in load_instances("train")}
     assert "rbg358" not in seen and "rbg443" not in seen
@@ -239,7 +254,10 @@ def test_training_budget_is_not_wall_clock(task):
     spec.loader.exec_module(module)
 
     if task == "atsp_gls":
-        from atsp_utils import BENCHMARK_SECONDS, TRAIN_SECONDS, train_iter_limit
+        atsp_utils = _get_reevo_atsp_utils()
+        BENCHMARK_SECONDS = atsp_utils.BENCHMARK_SECONDS
+        TRAIN_SECONDS = atsp_utils.TRAIN_SECONDS
+        train_iter_limit = atsp_utils.train_iter_limit
 
         # the iteration budget must track instance size, since a fixed count is
         # a different effective budget at n=50 and at n=443

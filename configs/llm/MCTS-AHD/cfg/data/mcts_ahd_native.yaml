@@ -1,0 +1,49 @@
+# The split shaped like MCTS-AHD's own, translated to ATSP.
+#
+#   python python_scripts/llm/MCTS-AHD/prepare_data.py --config mcts_ahd_native
+#   cd solvers/llm/MCTS-AHD && python main.py problem=atsp_constructive data=mcts_ahd_native
+#
+# Upstream generates its own data inside the solver: problems/<task>/gen_inst.py
+# writes problems/<task>/dataset/{train,val,test}<n>_dataset.npy — uniform random
+# points in the unit square — and eval.py loads the .npy matching the mood and
+# the configured problem_size. The shape of that protocol is:
+#
+#     train   64 instances at ONE size (n=50 for the constructive TSP task)
+#     val     64 instances at SEVERAL sizes (20, 50, 100, 200)
+#     test    1000 instances at 20 ... 1000, used only for the paper's tables
+#
+# Two things make a literal copy impossible here, and both are about ATSP
+# rather than about MCTS-AHD:
+#
+#   1. an ATSP instance is a cost MATRIX, not a point set — a 2-D point cloud
+#      cannot express d[i][j] != d[j][i], so `.npy` arrays of coordinates are
+#      replaced by cached `.npz` matrices under data/synthetic/;
+#   2. scoring against proven optima needs TSPLIB, which upstream never loads,
+#      so the reported set is the 19-instance benchmark rather than 1000
+#      random instances with no reference cost.
+#
+# What is preserved is the protocol: a single-size training set of many small
+# instances, a multi-size validation set, and a held-out test set the search
+# never sees. Instance counts are scaled down because an ATSP evaluation runs
+# real local search rather than a greedy pass over 50 points — 64 training
+# instances at 10 s each would be ten minutes per candidate heuristic.
+name: mcts_ahd_native
+description: >
+  Upstream's train / val / test protocol, with ATSP matrices in place of point
+  sets and TSPLIB as the reported test set.
+
+train:
+  # One size, many instances — upstream's `train50_dataset.npy`, scaled to 16.
+  - {source: synthetic, family: uniform, size: 50, count: 16, seed: 2024, effort: medium}
+
+val:
+  # Several sizes — upstream's val{20,50,100,200}. Cheap enough to run after
+  # every finished search.
+  - {source: synthetic, family: uniform,              size: 50,  count: 8, seed: 4048, effort: medium}
+  - {source: synthetic, family: asymmetric_clustered, size: 200, count: 4, seed: 4048, effort: low}
+
+test:
+  # Held out and never generated: the real benchmark.
+  source: tsplib
+  dir: data/raw/atsp
+  best_known: data/raw/atsp/bestSolutions.txt

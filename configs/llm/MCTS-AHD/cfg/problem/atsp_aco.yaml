@@ -1,0 +1,15 @@
+# ATSP ant colony optimisation: the LLM designs the heuristic (desirability)
+# matrix; the pheromone update is fixed Ant System, deposited on directed arcs.
+# This is upstream MCTS-AHD's `tsp_aco` task retargeted, and the direct
+# counterpart of configs/llm/ReEvo/cfg/problem/atsp_aco.yaml.
+problem_name: atsp_aco
+problem_type: aco
+obj_type: min
+problem_size: 0   # 0 = the whole training split; a positive value filters by n
+# ACO is the most expensive engine here: 30 iterations x 20 ants x n
+# construction steps per instance. The kill threshold matches the ReEvo and EoH
+# sides so no framework is handed a kinder deadline.
+timeout: 600
+func_name: heuristics
+use_external_knowledge: true
+description: Solving the Asymmetric Traveling Salesman Problem (ATSP) via stochastic solution sampling with ant colony optimization. ATSP requires finding the shortest closed tour that visits every city once and returns to the start, where the cost of travelling from city i to city j differs from the cost of travelling from j to i.

@@ -1,0 +1,1 @@
+def arc_badness_v{version}(distance_matrix: np.ndarray, tour: np.ndarray, penalty_count: np.ndarray, iteration: int) -> np.ndarray:

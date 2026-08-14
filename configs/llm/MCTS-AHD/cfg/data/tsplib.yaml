@@ -1,0 +1,22 @@
+# Data split: evolve on synthetic instances, evaluate on all 19 TSPLIB ATSP instances.
+name: tsplib
+description: >
+  Evolve on generated synthetic ATSP matrices, report on all nineteen TSPLIB instances.
+
+train:
+  - {source: synthetic, family: asymmetric_clustered,  size: 50,  count: 8, seed: 2024, effort: medium}
+  - {source: synthetic, family: scheduling_constrained, size: 50,  count: 8, seed: 2024, effort: medium}
+  - {source: synthetic, family: asymmetric_clustered,  size: 200, count: 4, seed: 2024, effort: low}
+  - {source: synthetic, family: scheduling_constrained, size: 200, count: 4, seed: 2024, effort: low}
+  - {source: synthetic, family: uniform,               size: 200, count: 4, seed: 2024, effort: low}
+  - {source: synthetic, family: scheduling_constrained, size: 300, count: 2, seed: 2024, effort: low}
+
+val:
+  source: tsplib
+  dir: data/raw/atsp
+  best_known: data/raw/atsp/bestSolutions.txt
+
+test:
+  source: tsplib
+  dir: data/raw/atsp
+  best_known: data/raw/atsp/bestSolutions.txt

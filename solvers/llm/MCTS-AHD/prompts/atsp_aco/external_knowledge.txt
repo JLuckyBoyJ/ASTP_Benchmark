@@ -1,0 +1,6 @@
+- Try combining various factors to determine how promising it is to select an arc.
+- Try sparsifying the matrix by setting unpromising elements to zero, so ants never consider them.
+- The matrix is asymmetric: the reverse arc distance_matrix[j][i] is extra information, not a duplicate of distance_matrix[i][j].
+- An arc is promising when it is cheap relative to the other arcs leaving i and the other arcs entering j, not merely cheap in absolute terms.
+- Values feed an exponent (heuristics ** beta), so the spread between good and bad arcs matters as much as their order.
+- Some instances are nearly flat: every arc costs about the same, and 1/d then tells the ants almost nothing. Reading the spread of the matrix and reacting to it is worth more than any fixed formula.

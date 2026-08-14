@@ -1,0 +1,14 @@
+# @package _global_
+# MCTS-AHD must be launched from its own directory (problems/ and prompts/ are
+# resolved relative to the working directory), so run outputs are written three
+# levels up into the repository's runs/ tree — alongside the EoH and ReEvo runs,
+# so all three frameworks are inspected and tabulated the same way:
+#
+#   runs/llm/MCTS-AHD/<problem_name>-<problem_type>/<date>_<time>/
+hydra:
+  run:
+    dir: ../../../runs/llm/MCTS-AHD/${hydra.job.name}/${now:%Y-%m-%d}_${now:%H-%M-%S}
+    subdir: ${hydra.job.num}_${hydra.job.override_dirname}
+  sweep:
+    dir: ../../../runs/llm/MCTS-AHD/${hydra.job.name}/${now:%Y-%m-%d}_${now:%H-%M-%S}
+    subdir: ${hydra.job.num}_${hydra.job.override_dirname}

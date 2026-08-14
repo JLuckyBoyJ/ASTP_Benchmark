@@ -2,8 +2,18 @@
 #
 # 19 instances shipped in data/raw/atsp, all EDGE_WEIGHT_TYPE: EXPLICIT with
 # EDGE_WEIGHT_FORMAT: FULL_MATRIX. Proven optima come from bestSolutions.txt.
-# Loaded by solvers/llm/EoH/atsp/data/tsplib.py; solver configs reference this
-# split through their own `data.test` block.
+#
+# Read by all three solver families through their own copy of the same loader
+# (`<solver>/atsp/data/tsplib.py`), each referencing the split from its own
+# config:
+#
+#   EoH        configs/llm/EoH/*.yaml               -> data.test
+#   ReEvo      solvers/llm/ReEvo/atsp_utils.py      -> TEST_SPLIT
+#   MCTS-AHD   configs/llm/MCTS-AHD/cfg/data/*.yaml -> test
+#
+# MCTS-AHD and ReEvo additionally evolve on rbg323 and rbg403 under their
+# default split; that overlap is deliberate, measured, and must be declared
+# when reporting. See configs/llm/MCTS-AHD/cfg/data/tsplib.yaml.
 
 name: tsplib_atsp
 source: tsplib
@@ -42,4 +52,7 @@ notes:
   - Diagonals use different sentinels per file (0, 9999, 100000000); the loader
     normalises them to 0, which is safe because a Hamiltonian tour never uses them.
   - Matrix rows are wrapped across several text lines in most files.
-  - This split is never used during heuristic evolution — only for reporting.
+  - Used for reporting by every solver family. Two instances (rbg323, rbg403)
+    are also in the ReEvo and MCTS-AHD training splits by default; use
+    `--exclude-train` when reporting a generalisation number, or switch those
+    frameworks to a synthetic training split.

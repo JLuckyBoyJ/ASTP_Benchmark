@@ -35,10 +35,12 @@ task:
 # ~19 instances, roughly 50 s per heuristic evaluation.
 data:
   train:
-    - {source: synthetic, family: asymmetric_clustered, size: 50,  count: 8, seed: 2024, effort: medium}
-    - {source: synthetic, family: uniform,              size: 50,  count: 3, seed: 2024, effort: medium}
-    - {source: synthetic, family: asymmetric_clustered, size: 200, count: 4, seed: 2024, effort: low}
-    - {source: synthetic, family: uniform,              size: 200, count: 4, seed: 2024, effort: low}
+    - {source: synthetic, family: asymmetric_clustered,  size: 50,  count: 8, seed: 2024, effort: medium}
+    - {source: synthetic, family: scheduling_constrained, size: 50,  count: 8, seed: 2024, effort: medium}
+    - {source: synthetic, family: uniform,               size: 50,  count: 3, seed: 2024, effort: medium}
+    - {source: synthetic, family: asymmetric_clustered,  size: 200, count: 4, seed: 2024, effort: low}
+    - {source: synthetic, family: scheduling_constrained, size: 200, count: 4, seed: 2024, effort: low}
+    - {source: synthetic, family: uniform,               size: 200, count: 4, seed: 2024, effort: low}
 
 eval:
   params:

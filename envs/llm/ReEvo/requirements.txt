@@ -1,0 +1,11 @@
+# ReEvo needs a few things the rest of the repo does not: Hydra for its config
+# system and an OpenAI-compatible client. numba/torch are deliberately absent —
+# the ATSP engines are plain NumPy.
+hydra-core>=1.3.2
+# hydra-colorlog is a Hydra *plugin*, not the plain `colorlog` library. Without
+# it, `override hydra/job_logging: colorlog` in cfg/config.yaml fails with
+# "Could not find 'hydra/job_logging/colorlog'".
+hydra-colorlog>=1.2.0
+omegaconf>=2.3
+openai>=1.10
+numpy>=1.24

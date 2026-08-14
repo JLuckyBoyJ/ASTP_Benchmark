@@ -15,6 +15,12 @@ runs/llm/*
 !runs/llm/EoH/
 runs/llm/EoH/*
 !runs/llm/EoH/README.md
+!runs/llm/ReEvo/
+runs/llm/ReEvo/*
+!runs/llm/ReEvo/README.md
+!runs/llm/MCTS-AHD/
+runs/llm/MCTS-AHD/*
+!runs/llm/MCTS-AHD/README.md
 
 # Local virtual environments (the specs in envs/ are tracked, the envs are not)
 envs/*
@@ -27,11 +33,24 @@ envs/llm/*
 !envs/llm/EoH/*.yml
 !envs/llm/EoH/*.txt
 !envs/llm/EoH/README.md
+!envs/llm/ReEvo/
+!envs/llm/ReEvo/*.txt
+!envs/llm/ReEvo/README.md
+!envs/llm/MCTS-AHD/
+!envs/llm/MCTS-AHD/*.txt
+!envs/llm/MCTS-AHD/README.md
 
 # Generated synthetic instances (regenerate with data/generate_atsp.py --all)
 data/synthetic/**/*.npz
 data/processed/*
 !data/processed/.gitkeep
+
+# Solver scratch: the live candidate heuristic is rewritten on every evaluation,
+# and per-evaluation stdout belongs to the run directory, not to git.
+solvers/llm/*/evaluations/
+solvers/llm/*/outputs/
+solvers/llm/*/ael_alg.py
+solvers/llm/*/_to_delete/
 
 # Python
 __pycache__/

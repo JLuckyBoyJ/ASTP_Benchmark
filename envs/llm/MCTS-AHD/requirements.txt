@@ -1,0 +1,13 @@
+# Extra dependencies for MCTS-AHD, on top of requirements.txt at the repo root.
+# The same set ReEvo needs — both frameworks are Hydra-driven and share the
+# same OpenAI-compatible client code.
+hydra-core>=1.3.2
+# hydra-colorlog is a Hydra *plugin*, not the plain `colorlog` library. Without
+# it, `override hydra/job_logging: colorlog` in cfg/config.yaml fails with
+# "Could not find 'hydra/job_logging/colorlog'".
+hydra-colorlog>=1.2.0
+omegaconf>=2.3
+openai>=1.10
+numpy>=1.24
+# Only for the tests, which read the YAML configs directly.
+pyyaml>=6.0

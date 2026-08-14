@@ -1,0 +1,4 @@
+- Try look-ahead mechanisms.
+- A city that is cheap to enter but expensive to leave should not be saved for last; the asymmetry distance_matrix[i][j] - distance_matrix[j][i] exposes such cities.
+- The cost of eventually returning to the destination node is distance_matrix[node][destination_node], which is not the same as distance_matrix[destination_node][node].
+- Prefer vectorised NumPy over Python loops over all unvisited nodes: this function is called n-1 times per instance and instances reach n=443.

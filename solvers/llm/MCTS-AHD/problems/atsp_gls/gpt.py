@@ -1,0 +1,6 @@
+import numpy as np
+def heuristics(distance_matrix: np.ndarray) -> np.ndarray:
+    d = distance_matrix.copy()
+    np.fill_diagonal(d, np.inf)
+    min_out = np.min(d, axis=1, keepdims=True)
+    return distance_matrix + 0.05 * (distance_matrix - min_out)

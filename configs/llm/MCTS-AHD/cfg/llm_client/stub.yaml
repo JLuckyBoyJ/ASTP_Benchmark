@@ -1,0 +1,9 @@
+# Offline fake model: answers every prompt with a trivial, randomly perturbed
+# heuristic. For checking that a task, a config or a code change works end to
+# end without spending anything.
+#
+#   python main.py problem=atsp_gls llm_client=stub max_fe=12
+_target_: utils.llm_client.stub.StubClient
+model: stub
+temperature: 1.0
+seed: 0

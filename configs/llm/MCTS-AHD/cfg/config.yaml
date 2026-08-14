@@ -1,0 +1,65 @@
+defaults:
+  - _self_
+  - problem: atsp_gls
+  - llm_client: openai
+  - override hydra/output: local
+  - override hydra/job_logging: colorlog
+  - override hydra/hydra_logging: colorlog
+
+hydra:
+  job:
+    name: ${problem.problem_name}-${problem.problem_type}
+    chdir: True
+
+# Only one algorithm lives here. EoH and ReEvo are separate solvers under
+# solvers/llm/{EoH,ReEvo}; this key exists so meta.json records it explicitly.
+algorithm: mcts_ahd
+
+# ── data ──────────────────────────────────────────────────────────────────────
+# Which split to evolve on and report against:
+#   tsplib            two large TSPLIB rbg instances (default; identical to ReEvo's)
+#   synthetic         generated matrices only, so no benchmark instance is seen
+#   mcts_ahd_native   upstream's train/val/test protocol, translated to ATSP
+# Defined in cfg/data/<name>.yaml. `problem_adapter` forwards this to every
+# evaluation subprocess as ATSP_DATA, since eval.py has no Hydra context.
+data: synthetic
+
+# ── search budget ─────────────────────────────────────────────────────────────
+# T in the paper: the number of heuristic *evaluations*, not accepted nodes.
+# A failed, timed-out or duplicate candidate consumes one too, so a run accepts
+# fewer nodes than this. The budget is checked once per round, not once per
+# expansion, so the final count overshoots by at most one round's worth of
+# children (2k+2, i.e. 6 by default) — summary.json records what was actually
+# spent as `function_evals`.
+#
+# The paper uses 1000. This repository defaults to 100, which is the budget the
+# ReEvo side already uses (configs/llm/ReEvo/cfg/config.yaml), so the two
+# frameworks are compared at equal cost — the MCTS-AHD claim is that the tree
+# search spends a *fixed* budget better, and that is only testable when the
+# budget is fixed. Scale up when you want the paper's setting:
+#
+#   python main.py problem=atsp_gls max_fe=1000
+#
+# Cost, measured by the paper on TSP with gpt-4o-mini: T=1000 is roughly three
+# hours, ~1M prompt tokens and ~0.2M completion tokens, about $0.35.
+max_fe: 100
+
+# ── MCTS-AHD parameters (paper, Sections 3.2 and 3.3) ─────────────────────────
+init_pop_size: 4                 # N_I, initial tree nodes            (paper: 4)
+pop_size: 10                     # |E|, the elite set action e2 samples from (10)
+exploration_constant: 0.1        # lambda_0 in Eq. (5), decayed by Eq. (7) (0.1)
+progressive_widening_alpha: 0.5  # alpha in Eq. (4)                    (paper: 0.5)
+expansion_children: 2            # k: an expansion makes 2k+2 children (paper: 2)
+max_tree_depth: 10               # depth cap on selection             (paper: 10)
+crossover_parents: 5             # upper bound on parents sampled for action e1
+seed: 2024                       # seeds Python's RNG for node selection
+
+# ── evaluation ────────────────────────────────────────────────────────────────
+# Hard kill for one heuristic evaluation. Upstream hardcodes 60 s, which suits
+# 64 tiny random instances; the ATSP tasks sweep a mixed split with real local
+# search, so the sensible budget differs per task and each problem config
+# carries its own — matching the EoH and ReEvo sides task for task.
+# Override as usual: `timeout=60`.
+timeout: ${problem.timeout}
+
+debug: false                     # log every prompt and every extracted heuristic

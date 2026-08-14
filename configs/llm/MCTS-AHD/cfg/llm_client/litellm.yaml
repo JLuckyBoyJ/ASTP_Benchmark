@@ -1,0 +1,6 @@
+# Any provider LiteLLM supports; the model string carries the provider prefix
+# (e.g. "anthropic/claude-3-5-sonnet", "gemini/gemini-1.5-pro"), and the
+# matching API key must be in the environment or in envs/.env.
+_target_: utils.llm_client.litellm.LiteLLMClient
+model: gpt-4o-mini
+temperature: 1.0

@@ -1,0 +1,11 @@
+_target_: utils.llm_client.openai.OpenAIClient
+
+model: gpt-4o-mini   # the ATSP benchmark standardises on this
+temperature: 1.0     # the paper's setting for the design actions
+api_key: ${oc.env:OPENAI_API_KEY,null}
+
+# Seconds to wait for one completion before giving up and reissuing it. The
+# SDK's own default is 600, which turns a single stalled request into a ten
+# minute pause — and MCTS-AHD is sequential, so a stall stops the whole search.
+timeout: 120.0
+max_retries: 4

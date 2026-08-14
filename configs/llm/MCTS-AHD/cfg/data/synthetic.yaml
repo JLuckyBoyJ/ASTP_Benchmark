@@ -1,0 +1,31 @@
+# No-overlap split: evolve on generated instances, report on TSPLIB.
+#
+#   python python_scripts/llm/MCTS-AHD/prepare_data.py --config synthetic
+#   cd solvers/llm/MCTS-AHD && python main.py problem=atsp_gls data=synthetic
+#
+# This is the split the EoH side of the repo uses, and the one the MCTS-AHD and
+# EoH papers both describe: nothing from data/raw/atsp is seen during the
+# search. It costs the surrogate problem documented in data/tsplib.yaml — the
+# generated families rank heuristics differently from the rbg instances they
+# imitate — so treat a win here as a weaker signal than a win on the real ones.
+name: synthetic
+description: >
+  Evolve on generated ATSP matrices, report on the whole TSPLIB benchmark.
+
+train:
+  - {source: synthetic, family: asymmetric_clustered,  size: 50,  count: 8, seed: 2024, effort: medium}
+  - {source: synthetic, family: scheduling_constrained, size: 50,  count: 8, seed: 2024, effort: medium}
+  - {source: synthetic, family: asymmetric_clustered,  size: 200, count: 4, seed: 2024, effort: low}
+  - {source: synthetic, family: scheduling_constrained, size: 200, count: 4, seed: 2024, effort: low}
+  - {source: synthetic, family: uniform,               size: 200, count: 4, seed: 2024, effort: low}
+  - {source: synthetic, family: scheduling_constrained, size: 300, count: 2, seed: 2024, effort: low}
+
+val:
+  source: tsplib
+  dir: data/raw/atsp
+  best_known: data/raw/atsp/bestSolutions.txt
+
+test:
+  source: tsplib
+  dir: data/raw/atsp
+  best_known: data/raw/atsp/bestSolutions.txt

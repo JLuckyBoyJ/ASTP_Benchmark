@@ -80,9 +80,18 @@ from atsp.data import resolve_split  # noqa: E402
 #: and are what any generalisation claim must rest on. The 19-instance mean must
 #: be reported with the overlap declared — two of its instances were seen.
 TRAIN_SPLIT = [
-    {"source": "tsplib", "dir": "data/raw/atsp",
-     "best_known": "data/raw/atsp/bestSolutions.txt",
-     "names": ["rbg323", "rbg403"]},
+    {"source": "synthetic", "family": "asymmetric_clustered", "size": 50,
+     "count": 8, "seed": 2024, "effort": "medium"},
+    {"source": "synthetic", "family": "scheduling_constrained", "size": 50,
+     "count": 8, "seed": 2024, "effort": "medium"},
+    {"source": "synthetic", "family": "asymmetric_clustered", "size": 200,
+     "count": 4, "seed": 2024, "effort": "low"},
+    {"source": "synthetic", "family": "scheduling_constrained", "size": 200,
+     "count": 4, "seed": 2024, "effort": "low"},
+    {"source": "synthetic", "family": "uniform", "size": 200,
+     "count": 4, "seed": 2024, "effort": "low"},
+    {"source": "synthetic", "family": "scheduling_constrained", "size": 300,
+     "count": 2, "seed": 2024, "effort": "low"},
 ]
 
 #: Iterations of GLS that one second of search buys, by instance size. Training
@@ -93,16 +102,10 @@ TRAIN_SPLIT = [
 #: data/cache/gls_calibration.json to replace these with your own numbers.
 _ITERS_PER_SECOND = ((50, 67.6), (200, 27.2), (300, 26.0), (350, 18.6), (450, 18.5))
 
-#: Wall-clock budget the benchmark gives each instance.
+# Wall-clock budget the benchmark gives each instance.
 BENCHMARK_SECONDS = 10.0
 
-#: Budget training aims to reproduce — now the benchmark's exactly. A 2x
-#: shortfall was measured to sit right on top of a crossover: heuristics that
-#: beat the seed at the halved budget lose to it at the full one, because a
-#: static guide front-loads its good decisions while the classic cost rule keeps
-#: paying off as the search runs longer. Two training instances at 10 s each is
-#: ~20 s per evaluation, so the exact match is affordable here.
-TRAIN_SECONDS = BENCHMARK_SECONDS
+TRAIN_SECONDS = 5.0
 
 _CALIBRATION_PATH = os.path.join(REPO_ROOT, "data", "cache", "gls_calibration.json")
 
@@ -136,9 +139,8 @@ def train_iter_limit(n: int, seconds: float = TRAIN_SECONDS) -> int:
 TEST_SPLIT = {"source": "tsplib", "dir": "data/raw/atsp",
               "best_known": "data/raw/atsp/bestSolutions.txt"}
 
-#: `val` is the small end of the benchmark, used for the quick post-run check
-#: `main.py` performs; the full sweep is done by the repo's benchmark runner.
-VAL_SPLIT = {**TEST_SPLIT, "max_n": 100}
+#: `val` targets all 19 TSPLIB ATSP instances.
+VAL_SPLIT = dict(TEST_SPLIT)
 
 
 def load_instances(mood: str, problem_size: int | None = None, quiet: bool = True):

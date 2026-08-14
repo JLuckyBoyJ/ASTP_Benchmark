@@ -1,1 +1,33 @@
-# Placeholder base configuration.
+# Index of the configuration tree.
+#
+# There is no single resolved config for this repository: each solver family
+# brings its own system (EoH reads plain YAML, ReEvo and MCTS-AHD are
+# Hydra-driven), so this file documents where to look rather than pretending to
+# unify them.
+#
+# configs/
+# ├── base.yaml                this file
+# ├── datasets/
+# │   ├── tsplib.yaml          the 19-instance held-out benchmark
+# │   └── synthetic_atsp.yaml  generated training instances + who generates them
+# ├── solvers/
+# │   ├── llm.yaml             the three LLM families: entry points, tasks, configs
+# │   ├── exact.yaml           placeholder
+# │   ├── heuristics.yaml      placeholder
+# │   └── neural.yaml          placeholder
+# └── llm/
+#     ├── EoH/                 one YAML per task, all extending base.yaml
+#     ├── ReEvo/cfg/           Hydra: config.yaml + problem/ + llm_client/
+#     └── MCTS-AHD/cfg/        Hydra: config.yaml + problem/ + llm_client/
+#                              + data/ (splits) + evaluation/ (engine budgets)
+#
+# Only MCTS-AHD keeps its data splits and evaluation budgets in configs/. For
+# EoH they are in the per-task YAML; for ReEvo they are constants in
+# solvers/llm/ReEvo/atsp_utils.py and at the top of each problems/*/eval.py,
+# because ReEvo's eval.py runs as a subprocess with no config context. MCTS-AHD
+# solves that with a plain-YAML loader (solvers/llm/MCTS-AHD/atsp_utils.py:
+# load_config) rather than by hardcoding.
+
+name: atsp-benchmark
+objective: mean_gap_percent   # every solver family reports this, lower is better
+test_set: configs/datasets/tsplib.yaml
