@@ -25,14 +25,17 @@ try:
 except Exception:
     from gpt import heuristics
 
+# No wall-clock cap during training; see problems/atsp_gls/eval.py for why a
+# time cap plus ReEvo's parallel evaluation makes the objective depend on CPU
+# contention rather than on the heuristic.
 N_ITERATIONS = 30
 N_ANTS = 20
-TIME_LIMIT = 10.0
+TRAIN_TIME_LIMIT = None
 VAL_ITERATIONS = 50
 VAL_TIME_LIMIT = 30.0
 
 
-def solve(instance, n_iterations: int, time_limit: float) -> float:
+def solve(instance, n_iterations: int, time_limit: float | None) -> float:
     n = instance.n
     # Upstream sets the diagonal to a non-zero value before calling the
     # heuristic so that rules like 1/d do not divide by zero; self-loops
@@ -43,7 +46,8 @@ def solve(instance, n_iterations: int, time_limit: float) -> float:
     heu = np.asarray(heuristics(edge_attr), dtype=np.float64).reshape(n, n)
     heu = np.where(heu < 1e-9, 1e-9, heu)
     aco = ACO(instance.dist, heu, n_ants=N_ANTS, seed=2024)
-    return aco.run(n_iterations, deadline=time.perf_counter() + time_limit)
+    deadline = None if time_limit is None else time.perf_counter() + time_limit
+    return aco.run(n_iterations, deadline=deadline)
 
 
 if __name__ == "__main__":
@@ -54,6 +58,6 @@ if __name__ == "__main__":
 
     instances = load_instances(mood, problem_size if mood == "train" else None)
     iterations = N_ITERATIONS if mood == "train" else VAL_ITERATIONS
-    budget = TIME_LIMIT if mood == "train" else VAL_TIME_LIMIT
+    budget = TRAIN_TIME_LIMIT if mood == "train" else VAL_TIME_LIMIT
     costs = [solve(instance, iterations, budget) for instance in instances]
     report(instances, costs)

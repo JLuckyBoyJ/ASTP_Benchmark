@@ -3,3 +3,10 @@ _target_: utils.llm_client.openai.OpenAIClient
 model: gpt-4o-mini # LLM model (the ATSP benchmark standardises on this)
 temperature: 1.0  # temperature for chat completion
 api_key: ${oc.env:OPENAI_API_KEY,null}
+
+# Seconds to wait for one completion before giving up and reissuing it. The
+# SDK's own default is 600, which turns a single stalled request into a ten
+# minute pause — twice over, because it retries. Raise it if you switch to a
+# slow model or ask for many completions in one call.
+timeout: 120.0
+max_retries: 4

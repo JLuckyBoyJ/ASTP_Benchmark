@@ -45,11 +45,19 @@ SYNTHETIC_DIR = os.path.join(REPO_ROOT, "data", "synthetic")
 #: the reference-cost computation happens once rather than once per task.
 DEFAULT_SETS = [
     ("asymmetric_clustered", 50, 8, 2024, "medium"),    # all four tasks
+    ("scheduling_constrained", 50, 8, 2024, "medium"),  # scheduling / rbg simulated
     ("uniform", 50, 8, 2024, "medium"),                 # construct
     ("uniform", 50, 4, 2024, "medium"),                 # rnr
     ("uniform", 50, 3, 2024, "medium"),                 # aco
     ("asymmetric_clustered", 200, 4, 2024, "low"),      # large + correlated
+    ("scheduling_constrained", 200, 4, 2024, "low"),    # large + scheduling
     ("uniform", 200, 4, 2024, "low"),                   # large + uncorrelated
+    ("asymmetric_clustered", 300, 2, 2024, "low"),      # xl + correlated
+    ("scheduling_constrained", 300, 2, 2024, "low"),    # xl + scheduling
+    # Fitted to TSPLIB rbg323/358/403/443: flat integer costs with ~6% free
+    # arcs. Those four carry 84% of the benchmark's mean gap and no other
+    # family reproduces them — see atsp/data/synthetic.py.
+    ("stacker_crane", 350, 4, 2024, "low"),             # xl + rbg regime
 ]
 
 

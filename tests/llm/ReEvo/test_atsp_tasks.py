@@ -92,22 +92,53 @@ def test_every_task_sets_its_own_kill_deadline(task):
     assert root_cfg["timeout"] == "${problem.timeout}"
 
 
+def test_the_two_atsp_copies_have_not_drifted():
+    """EoH and ReEvo keep separate `atsp/` trees; the data layer must match.
+
+    Nothing enforces it at runtime, and a divergence here is silent and
+    poisonous: the two frameworks would train on different matrices while the
+    comparison table claims they trained on the same ones. `engines/__init__.py`
+    is exempt — ReEvo deliberately exports a subset.
+    """
+    import filecmp
+
+    eoh = os.path.join(ROOT, "solvers", "llm", "EoH", "atsp", "data")
+    reevo = os.path.join(REEVO, "atsp", "data")
+    for name in sorted(os.listdir(eoh)):
+        if not name.endswith(".py"):
+            continue
+        assert filecmp.cmp(os.path.join(eoh, name), os.path.join(reevo, name),
+                           shallow=False), f"atsp/data/{name} has drifted"
+
+
 @pytest.mark.parametrize("task", ALL_TASKS)
-def test_training_uses_the_whole_mixed_split(task):
+def test_training_uses_the_whole_split(task):
     """The configured `problem_size` must not quietly shrink the training set.
 
     ReEvo passes `problem_size` to eval.py, and upstream uses it to select one
-    dataset of one size. Filtering to n=50 here would train every heuristic on
-    small instances only — the overfitting that cost the EoH side a third of
-    the benchmark — so the ATSP configs set 0, meaning "the whole split".
+    dataset of one size. Filtering here would train every heuristic on small
+    instances only — the overfitting that cost the EoH side a third of the
+    benchmark — so the ATSP configs set 0, meaning "the whole split".
     """
     from atsp_utils import TRAIN_SPLIT, load_instances
 
-    instances = load_instances("train", problem_cfg(task)["problem_size"])
-    assert len(instances) == sum(spec["count"] for spec in TRAIN_SPLIT)
-    sizes = {ins.n for ins in instances}
-    assert sizes == {spec["size"] for spec in TRAIN_SPLIT}
-    assert max(sizes) > 100, "training must include instances larger than n=100"
+    unfiltered = load_instances("train", 0)
+    configured = load_instances("train", problem_cfg(task)["problem_size"])
+    assert len(configured) == len(unfiltered) > 0
+    assert max(i.n for i in configured) > 100, "training needs instances beyond n=100"
+
+
+def test_held_out_instances_are_not_trained_on():
+    """rbg358 and rbg443 carry the generalisation claim; keep them unseen.
+
+    Training moved onto the real distribution because no synthetic surrogate
+    ranked heuristics the way the target does. That is defensible only while
+    the reported claim rests on instances the search never saw.
+    """
+    from atsp_utils import load_instances
+
+    seen = {i.name for i in load_instances("train")}
+    assert "rbg358" not in seen and "rbg443" not in seen
 
 
 def test_default_model_is_gpt_4o_mini():
@@ -187,6 +218,47 @@ def test_a_broken_heuristic_is_recorded_not_raised(instance):
                              "time_limit": 1.0}, log=lambda *_: None)
     assert records[0]["status"] == "failed"
     assert "RuntimeError" in records[0]["error"]
+
+
+@pytest.mark.parametrize("task", ["atsp_gls", "atsp_aco"])
+def test_training_budget_is_not_wall_clock(task):
+    """A training score must depend on the heuristic, not on CPU contention.
+
+    ReEvo evaluates a generation as concurrent subprocesses. With a wall-clock
+    budget the seed — evaluated alone at iteration 0 — scored -2.74 while the
+    identical code re-sampled later alongside nine rivals scored -1.23, a swing
+    bigger than the spread between candidates. The elitist could then never be
+    displaced. Benchmarking still uses the clock: it runs on its own.
+    """
+    import importlib.util
+
+    path = os.path.join(REEVO, "problems", task, "eval.py")
+    spec = importlib.util.spec_from_file_location(f"{task}_eval", path)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+
+    if task == "atsp_gls":
+        from atsp_utils import BENCHMARK_SECONDS, TRAIN_SECONDS, train_iter_limit
+
+        # the iteration budget must track instance size, since a fixed count is
+        # a different effective budget at n=50 and at n=443
+        assert train_iter_limit(50) > train_iter_limit(450)
+        assert TRAIN_SECONDS <= BENCHMARK_SECONDS
+        assert module.VAL_TIME_LIMIT > 0        # reporting budget is unchanged
+    else:
+        assert module.TRAIN_TIME_LIMIT is None
+        assert module.N_ITERATIONS > 0
+
+
+def test_the_same_guide_always_scores_the_same(instance):
+    """The training engine must be deterministic run to run."""
+    from gls import guided_local_search
+
+    runs = [guided_local_search(instance.dist, instance.dist.copy(),
+                                perturbation_moves=30, iter_limit=20,
+                                time_limit=None)[1] for _ in range(3)]
+    assert runs[0] == runs[1] == runs[2]
 
 
 def test_reevo_runs_are_not_filed_under_eoh_in_the_merged_table(tmp_path):

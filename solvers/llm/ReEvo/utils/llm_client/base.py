@@ -2,7 +2,11 @@ import time
 from typing import Optional
 import time
 import logging
-import concurrent
+# `import concurrent` alone does NOT bind the `futures` submodule: it only
+# works when something else in the process has already imported it, so
+# `concurrent.futures.ThreadPoolExecutor` below raises AttributeError
+# depending on which other packages happen to be loaded.
+import concurrent.futures
 from random import random
 
 
@@ -69,9 +73,9 @@ class BaseClient(object):
         if len(messages_list) > 1:
             assert n == 1, "Currently, only n=1 is supported for multi-chat completion."
         
-        if "gpt" not in self.model:
-            # Transform messages if n > 1
-            messages_list *= n
+        if n > 1:
+            # Transform messages if n > 1 to issue parallel single completion requests
+            messages_list = messages_list * n
             n = 1
 
         with concurrent.futures.ThreadPoolExecutor() as executor:

@@ -78,7 +78,17 @@ def main(argv=None) -> int:
                         help="score ReEvo's own seed function (the baseline)")
     parser.add_argument("--max-n", type=int)
     parser.add_argument("--names", nargs="*")
+    # A partial sweep (--names/--max-n) writes the same filenames as a full one
+    # and silently replaces it. Send exploratory runs somewhere else.
+    parser.add_argument("--out", help="output directory "
+                                      "(default: the run dir, else runs/llm/ReEvo/eval/<task>)")
+    parser.add_argument("--name", help="basename of the result files "
+                                       "(default: eval_test, or eval_test_seed)")
     args = parser.parse_args(argv)
+
+    if (args.names or args.max_n) and not (args.out or args.name):
+        print("note: this is a partial instance set but writes the standard "
+              "result files; pass --name to keep it separate from a full sweep.")
 
     if args.all:
         found = sorted(glob.glob(os.path.join(RUNS, "*", "*", "best_heuristic.py")))
@@ -88,15 +98,15 @@ def main(argv=None) -> int:
         for path in found:
             run_dir = os.path.dirname(path)
             task, code = load_heuristic_for_run(run_dir)
-            evaluate(task, code, "best_heuristic.py", run_dir, "eval_test",
-                     args.max_n, args.names)
+            evaluate(task, code, "best_heuristic.py", args.out or run_dir,
+                     args.name or "eval_test", args.max_n, args.names)
         return 0
 
     if args.run:
         run_dir = args.run if os.path.isabs(args.run) else os.path.join(ROOT, args.run)
         task, code = load_heuristic_for_run(run_dir)
-        evaluate(task, code, "best_heuristic.py", run_dir, "eval_test",
-                 args.max_n, args.names)
+        evaluate(task, code, "best_heuristic.py", args.out or run_dir,
+                 args.name or "eval_test", args.max_n, args.names)
         return 0
 
     if not args.task:
@@ -111,8 +121,9 @@ def main(argv=None) -> int:
     else:
         code = open(args.heuristic, encoding="utf-8").read()
         label, name = os.path.basename(args.heuristic), "eval_test"
-    out_dir = os.path.join(RUNS, "eval", args.task)
-    evaluate(args.task, code, label, out_dir, name, args.max_n, args.names)
+    out_dir = args.out or os.path.join(RUNS, "eval", args.task)
+    evaluate(args.task, code, label, out_dir, args.name or name,
+             args.max_n, args.names)
     return 0
 
 

@@ -154,13 +154,37 @@ invalid".
 | task | measured, seed heuristic | deadline |
 |---|---|---|
 | `atsp_constructive` | ~9 s (one greedy pass per instance) | 60 s |
-| `atsp_gls` | ~80 s (16 × 5 s, the budget *is* the runtime) | 300 s |
-| `atsp_aco` | ~23 s (0.5 s at n=50, 2.4 s at n=200; 10 s cap each) | 600 s |
+| `atsp_gls` | ~32 s (50 GLS iterations per instance) | 300 s |
+| `atsp_aco` | ~40 s (30 ACO iterations per instance) | 600 s |
 
-A full `atsp_gls` run is therefore ≈ 100 × 80 s ≈ 2¼ hours of search plus LLM
-latency. Trim a pilot with `max_fe=20`, or `problem.problem_size=50` to train
-on the eight small instances only — the latter is much faster and much worse,
-for the reason in §5.
+A full `atsp_gls` run is therefore around an hour of search plus LLM latency.
+Trim a pilot with `max_fe=20`, or `problem.problem_size=50` to train on the
+small instances only — the latter is much faster and much worse, for the reason
+in §5.
+
+### Why training is not wall-clock bounded
+
+The training budget is a fixed **iteration** count, not a time limit, and this
+is the one place where the ATSP port deviates from upstream's numbers for a
+reason worth stating.
+
+ReEvo evaluates a whole generation as concurrent subprocesses. Under a
+wall-clock budget, a candidate's score then depends on how many rivals happen
+to share the CPU with it — and the seed is evaluated *alone* at iteration 0.
+Measured on this task: the seed scored −2.74 alone, and the byte-identical code
+re-sampled at iteration 6 alongside nine others scored −1.23. That 1.5-point
+swing is larger than the spread between real candidates (the best evolved guide
+managed −1.60), so a 106-evaluation run ranked machine load instead of
+heuristics and never displaced the seed once.
+
+Nothing is lost by dropping the clock: ReEvo's heuristic produces a matrix
+**computed once per instance**, so there is no per-iteration cost for a
+wall-clock budget to price. EoH is the opposite case — its rule is called every
+iteration, so its wall-clock budget is doing real work and stays.
+
+Benchmarking still uses wall clock (10 s per instance for GLS). It runs on its
+own, so there is no contention, and that budget is what the EoH side reports
+against.
 
 ---
 
