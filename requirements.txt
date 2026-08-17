@@ -4,3 +4,10 @@ pyyaml>=6.0
 joblib>=1.3
 requests>=2.31
 pytest>=7.4
+
+# Exact ATSP solvers used to prove optimal tour costs of generated test instances:
+# - OR-Tools (CP-SAT) used by data/generate_atsp_testset.py
+# - IBM CPLEX (docplex, cplex) used by data/generate_atsp_testset_cplex.py
+ortools>=9.8
+docplex
+cplex
