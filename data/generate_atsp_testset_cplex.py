@@ -155,6 +155,8 @@ if HAS_CPLEX:
                         )
 
 
+_COMMUNITY_WARNING_SHOWN = False
+
 def _solve_exact(dist: np.ndarray, seed: int, time_limit: float = EXACT_TIME_LIMIT,
                  workers: int = WORKERS) -> tuple[float, bool, float]:
     """Return ``(best_cost, proved_optimal, lower_bound)`` for one instance using CPLEX IBM.
@@ -162,6 +164,7 @@ def _solve_exact(dist: np.ndarray, seed: int, time_limit: float = EXACT_TIME_LIM
     CPLEX solves the ATSP integer program using subtour elimination lazy constraints.
     Returns optimal cost and bound, falling back to local search heuristic if CPLEX limit is reached.
     """
+    global _COMMUNITY_WARNING_SHOWN
     n = int(dist.shape[0])
     costs = np.asarray(dist, dtype=np.float64).round().astype(np.int64)
 
@@ -252,7 +255,16 @@ def _solve_exact(dist: np.ndarray, seed: int, time_limit: float = EXACT_TIME_LIM
         return float(best), False, bound
 
     except Exception as exc:
-        print(f"  [CPLEX note: {exc}] Falling back to reference solver for n={n}")
+        err_msg = str(exc)
+        if "1016" in err_msg or "Community Edition" in err_msg:
+            if not _COMMUNITY_WARNING_SHOWN:
+                print("\n  [CPLEX Notice] Capped by CPLEX Community Edition limit (1,000 variables).")
+                print("  For n >= 32 with CPLEX exact solver, install full IBM CPLEX Studio via")
+                print("  free IBM Academic Initiative: https://www.ibm.com/academic")
+                print("  Falling back to reference solver for larger instances...\n")
+                _COMMUNITY_WARNING_SHOWN = True
+        else:
+            print(f"  [CPLEX note: {exc}] Falling back to reference solver for n={n}")
         heuristic = reference_cost(dist, effort="medium" if n <= 100 else "low", seed=seed)
         return float(heuristic), False, 0.0
 
