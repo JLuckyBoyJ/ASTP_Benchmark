@@ -1,0 +1,16 @@
+# A locally served OpenAI-compatible endpoint (vLLM, Ollama, LM Studio, ...).
+#
+#   python main.py llm_client@heu=local llm_client@meta=local heu.model=qwen3:14b
+#
+# No API key is needed, so `api_key` is a placeholder the client accepts because
+# `base_url` is set. Nothing else changes: MoH only ever calls prompt() and
+# prompt_batch().
+_target_: utils.llm_client.openai.OpenAIClient
+model: qwen3:14b
+temperature: 1.0
+batch_size: 5
+base_url: http://localhost:8000/v1
+api_key: local
+timeout: 600.0
+max_retries: 3
+cache_dir: null

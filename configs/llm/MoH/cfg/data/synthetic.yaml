@@ -1,0 +1,51 @@
+# MoH's default split: evolve on generated matrices, report on TSPLIB.
+#
+#   python python_scripts/llm/MoH/prepare_data.py --config synthetic
+#   cd solvers/llm/MoH && python main.py problem=atsp_gls data=synthetic
+#
+# Nothing from data/raw/atsp is seen during the search, so every number the
+# benchmark reports is out-of-sample. That is the stronger claim and it is the
+# one MoH is about — Section 4 and Figure 1 are entirely about generalising to
+# sizes and instances the search never saw.
+#
+# WHY THIS IS THE DEFAULT, WHERE MCTS-AHD DEFAULTS TO `tsplib`
+# MoH's downstream subtasks are instance *sizes*, and every size named in
+# problem.problem_size has to exist in the split. TSPLIB ATSP has 19 instances
+# at 19 irregular sizes (17, 33, 34, ... 443), so it cannot be split into
+# subtasks of a chosen size at all. Generated instances can.
+#
+# WHAT IT COSTS
+# The generated families rank heuristics slightly differently from the rbg
+# instances they imitate (see configs/llm/MCTS-AHD/cfg/data/tsplib.yaml and the
+# note in configs/datasets/synthetic_atsp.yaml), so a win here is a weaker
+# signal than a win measured on the real instances. Use `data=tsplib` for a
+# like-for-like comparison against the ReEvo and MCTS-AHD defaults.
+name: synthetic
+description: >
+  Evolve on generated ATSP matrices at two sizes, report on the whole TSPLIB
+  benchmark.
+
+# `val` is D_i in Eq. (1) — the dataset every utility call is measured on. MoH
+# has ONE in-search split, not two, so `train` is an anchor to the same list:
+# prepare_data.py then generates exactly what the search will use, and the two
+# cannot drift apart.
+#
+# The instance counts, not the per-instance budget, are the cost knob. The
+# budget in cfg/evaluation/atsp_gls.yaml is held identical to the MCTS-AHD and
+# ReEvo sides so a gap here means the same thing as a gap there; the counts are
+# small so a run finishes in under an hour. Both families are present at each
+# size because they imitate the two distinct regimes in TSPLIB ATSP — see
+# configs/datasets/synthetic_atsp.yaml.
+val: &search_split
+  - {source: synthetic, family: asymmetric_clustered,   size: 50,  count: 2, seed: 2024, effort: medium}
+  - {source: synthetic, family: scheduling_constrained, size: 50,  count: 2, seed: 2024, effort: medium}
+  - {source: synthetic, family: asymmetric_clustered,   size: 200, count: 1, seed: 2024, effort: low}
+  - {source: synthetic, family: scheduling_constrained, size: 200, count: 1, seed: 2024, effort: low}
+  - {source: synthetic, family: uniform,                size: 200, count: 1, seed: 2024, effort: low}
+
+train: *search_split
+
+test:
+  source: tsplib
+  dir: data/raw/atsp
+  best_known: data/raw/atsp/bestSolutions.txt

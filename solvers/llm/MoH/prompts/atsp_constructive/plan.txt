@@ -1,0 +1,9 @@
+Provide several high-level directions for improving the constructive heuristic for the Asymmetric Travelling Salesman Problem above and its corresponding utility, each aimed at minimizing the utility as a result. The utility is the mean optimality gap in percent, so lower is better. Bear in mind what makes ATSP different from symmetric TSP: a cheap arc into a city says nothing about the cost of leaving it, so a greedy rule that only reads distance_matrix[current][candidate] can strand the tour in an expensive corner; the outgoing costs of a candidate, the cost of eventually returning to the start, and the imbalance between the two directions are all available and all informative. You can choose to propose suggestions to improve the current solution (Start with label 'Refinement') or propose alternative novel approaches (Start with label 'Innovation'). Format your response as a JSON codeblock below, including the appropriate label for each suggestion.
+{{
+"direction": [
+    {{"content": "Refinement: Your first piece of direction suggestion here."}},
+    {{"content": "Refinement: Your second piece of direction suggestion here."}},
+    {{"content": "Innovation: Your third piece of direction suggestion here."}},
+    {{"content": "Innovation: Your fourth piece of direction suggestion here."}}
+]
+}}

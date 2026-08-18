@@ -1,0 +1,21 @@
+# Engine budget for knowledge-guided local search.
+#
+# Deliberately identical to atsp_gls.yaml: the two improvement tasks must differ
+# only in what the LLM designs (a per-iteration cost matrix versus a per-arc
+# badness vector), never in how long the engine is allowed to run. If you change
+# one of these files, change the other.
+name: atsp_kgls
+description: Knowledge-guided local search with an LLM-designed badness rule.
+
+perturbation_moves: 30
+
+train: &search_budget
+  iter_limit: auto
+  equivalent_seconds: 10.0
+  time_limit: null
+
+val: *search_budget
+
+test:
+  iter_limit: 1000
+  time_limit: 10.0

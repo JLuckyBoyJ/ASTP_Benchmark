@@ -1,0 +1,52 @@
+[
+    {
+        "idea": "```python\n# Task: Introduce a decay function for the costs of arcs that have not been used in a certain number of iterations, incentivizing the exploration of less popular routes.\n",
+        "best_sol": "import numpy as np\ndef update_edge_distance(edge_distance, local_opt_tour, edge_n_used):\n    updated_edge_distance = edge_distance.copy()\n    n = edge_distance.shape[0]\n    decay_factor = 0.1  \n    threshold = 5  \n    for i in range(n):\n        u = local_opt_tour[i]\n        v = local_opt_tour[(i + 1) % n]\n        if edge_n_used[u, v] < threshold:\n            updated_edge_distance[u, v] *= (1 - decay_factor)\n        updated_edge_distance[u, v] += edge_n_used[u, v]\n    return updated_edge_distance",
+        "utility": -8.639037947519904
+    },
+    {
+        "idea": "The algorithm employs a hybrid approach by integrating simulated annealing for broader solution exploration with a decision tree mechanism that dynamically adjusts penalties based on the frequency of edge utilization, enhancing the search's capacity to escape local optima.",
+        "best_sol": "import numpy as np\ndef update_edge_distance(edge_distance, local_opt_tour, edge_n_used):\n    updated_edge_distance = np.copy(edge_distance)\n    n = len(local_opt_tour)\n    penalties = edge_n_used.copy()\n    for i in range(n):\n        u = local_opt_tour[i]\n        v = local_opt_tour[(i + 1) % n]\n        adjusted_penalty = 1.0 + (penalties[u, v] / n**2)\n        updated_edge_distance[u, v] += (1 / (1 + penalties[u, v])) * adjusted_penalty\n    return updated_edge_distance",
+        "utility": -8.465948970777319
+    },
+    {
+        "idea": "The algorithm adjusts edge costs based on historical usage, applying a decay factor for less frequently used edges and a penalty for more used edges, normalized to encourage exploration of less traversed routes.",
+        "best_sol": "import numpy as np\ndef update_edge_distance(edge_distance, local_opt_tour, edge_n_used):\n    updated_edge_distance = edge_distance.copy()\n    n = edge_distance.shape[0]\n    decay_factor = 0.1\n    threshold = 5\n    penalties = np.zeros((n, n))\n    decay = np.zeros((n, n))\n    for i in range(n):\n        u = local_opt_tour[i]\n        v = local_opt_tour[(i + 1) % n]\n        if edge_n_used[u, v] < threshold:\n            decay[u, v] = edge_distance[u, v] * decay_factor\n        penalties[u, v] = edge_n_used[u, v]\n    updated_edge_distance += penalties - decay\n    return updated_edge_distance",
+        "utility": -8.229911275608027
+    },
+    {
+        "idea": "```python\n# The algorithm introduces an adjustment in the cost matrix by applying a penalty based on the \n# frequency of arc usage and a decay for underutilized arcs to encourage exploration of \n# alternative routes away from the local optimum.\n\n",
+        "best_sol": "import numpy as np\ndef update_edge_distance(edge_distance, local_opt_tour, edge_n_used):\n    updated_edge_distance = edge_distance.copy()\n    n = edge_distance.shape[0]\n    decay_factor = 0.1\n    threshold = 5\n    penalties = np.zeros((n, n))\n    decay = np.zeros((n, n))\n    u_v_pairs = [(local_opt_tour[i], local_opt_tour[(i + 1) % n]) for i in range(n)]\n    u_indices, v_indices = zip(*u_v_pairs)\n    u_indices = np.array(u_indices)\n    v_indices = np.array(v_indices)\n    decay_mask = edge_n_used[u_indices, v_indices] < threshold\n    decay[decay_mask] = edge_distance[u_indices, v_indices] * decay_factor\n    penalties += edge_n_used\n    updated_edge_distance += penalties - decay\n    return updated_edge_distance",
+        "utility": -8.072157402522363
+    },
+    {
+        "idea": "The algorithm clusters edges based on their usage frequency and adjusts the costs more aggressively for less frequently used edges, promoting exploration.",
+        "best_sol": "import numpy as np\ndef update_edge_distance(edge_distance, local_opt_tour, edge_n_used):\n    updated_edge_distance = np.copy(edge_distance)\n    n = len(local_opt_tour)\n    used_edges = np.zeros((n, n), dtype=float)\n    for i in range(n):\n        u = local_opt_tour[i]\n        v = local_opt_tour[(i + 1) % n]\n        used_edges[u, v] += 1\n    max_usage = np.max(edge_n_used + 1)\n    adjustment_factor = (max_usage - edge_n_used) / (max_usage + 1)\n    updated_edge_distance += adjustment_factor * updated_edge_distance\n    return updated_edge_distance",
+        "utility": -7.890546781375236
+    },
+    {
+        "idea": "Introduce a varying penalty for edges based on their usage frequency to create stronger incentives for the search to explore alternative routes. The penalty is proportional to the edge's usage, further amplified by a customizable scaling factor.",
+        "best_sol": "import numpy as np\ndef update_edge_distance(edge_distance, local_opt_tour, edge_n_used):\n    updated_edge_distance = np.copy(edge_distance)\n    scaling_factor = 2.0  \n    penalties = np.zeros_like(edge_distance)\n    n = len(local_opt_tour)\n    for i in range(n):\n        u = local_opt_tour[i]\n        v = local_opt_tour[(i + 1) % n]\n        penalties[u, v] = scaling_factor * edge_n_used[u, v]\n    updated_edge_distance += penalties\n    updated_edge_distance = updated_edge_distance / (1 + edge_n_used)\n    return updated_edge_distance",
+        "utility": -6.946789145990896
+    },
+    {
+        "idea": "The improved algorithm penalizes less utilized edges more significantly, ensuring that less frequently used edges are prioritized, \n# it utilizes a voting mechanism to balance penalties based on utilization frequency and also incorporates a dynamic \n# scaling factor adjusted according to the utilization context.",
+        "best_sol": "import numpy as np\ndef update_edge_distance(edge_distance, local_opt_tour, edge_n_used):\n    updated_edge_distance = np.copy(edge_distance)\n    n = len(local_opt_tour)\n    total_penalty = np.sum(edge_n_used)\n    scaling_factor = 1.0 + (total_penalty / (n**2))  \n    for i in range(n):\n        u = local_opt_tour[i]\n        v = local_opt_tour[(i + 1) % n]\n        penalty = scaling_factor * (1 / (1 + edge_n_used[u, v]))\n        updated_edge_distance[u, v] += penalty\n    return updated_edge_distance",
+        "utility": -6.708469850522243
+    },
+    {
+        "idea": "The algorithm increases the costs of arcs that are least frequently used in the current tour to encourage exploration of less traveled routes.",
+        "best_sol": "import numpy as np\ndef update_edge_distance(edge_distance, local_opt_tour, edge_n_used):\n    updated_edge_distance = np.copy(edge_distance)\n    n = len(local_opt_tour)\n    for i in range(n):\n        u = local_opt_tour[i]\n        v = local_opt_tour[(i + 1) % n]\n        updated_edge_distance[u, v] *= (1 + 1.0 / (edge_n_used[u, v] + 1))\n    return updated_edge_distance",
+        "utility": -6.091433704023019
+    },
+    {
+        "idea": "The algorithm applies a dynamic scaling factor to the costs of arcs based on their usage frequency, significantly increasing the costs of arcs that are part of the current tour compared to those that are not.",
+        "best_sol": "import numpy as np\ndef update_edge_distance(edge_distance, local_opt_tour, edge_n_used):\n    updated_edge_distance = np.copy(edge_distance)\n    n = len(local_opt_tour)\n    scaling_factor = 2.0  \n    for i in range(n):\n        u = local_opt_tour[i]\n        v = local_opt_tour[(i + 1) % n]\n        updated_edge_distance[u, v] += scaling_factor * edge_n_used[u, v]\n    return updated_edge_distance",
+        "utility": -5.81746838263949
+    },
+    {
+        "idea": "The algorithm updates the edge distance matrix by applying penalties to the directed arcs that are part of the current local optimal tour, proportional to the number of times each arc has been used, thus encouraging exploration of alternative routes.",
+        "best_sol": "import numpy as np\ndef update_edge_distance(edge_distance, local_opt_tour, edge_n_used):\n    updated_edge_distance = edge_distance.copy()\n    n = len(local_opt_tour)\n    for i in range(n):\n        u = local_opt_tour[i]\n        v = local_opt_tour[(i + 1) % n]  \n        penalty = edge_n_used[u, v] + 1  \n        updated_edge_distance[u, v] += penalty  \n    return updated_edge_distance",
+        "utility": -5.772077793936655
+    }
+]

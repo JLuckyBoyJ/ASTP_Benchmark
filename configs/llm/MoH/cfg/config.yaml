@@ -1,0 +1,117 @@
+defaults:
+  - _self_
+  - problem: atsp_gls
+  # `data` is a real Hydra config group, not a bare string, so `data=multisize`
+  # is a group override and the chosen split is merged into the config (and
+  # therefore into meta.json). It has to be: `cfg/data/` is a directory under
+  # `config_path`, which makes Hydra treat `data` as a group whether or not the
+  # defaults list mentions it — a plain `data: synthetic` key plus a `cfg/data/`
+  # directory gives the confusing "Could not override 'data'. No match in the
+  # defaults list." on every `data=...` override.
+  - data: synthetic
+  # Two clients, one per level of the bilevel framework. Point them at
+  # different models to reproduce the paper's "cheap inner, strong outer" study:
+  #   python main.py llm_client@meta=openai meta.model=gpt-4o
+  - llm_client@heu: openai
+  - llm_client@meta: openai
+  - override hydra/output: local
+  - override hydra/job_logging: colorlog
+  - override hydra/hydra_logging: colorlog
+
+hydra:
+  job:
+    name: ${problem.problem_name}-${problem.problem_type}
+    chdir: True
+
+# Only one algorithm lives here. EoH, ReEvo, HSEvo and MCTS-AHD are separate
+# solvers under solvers/llm/; this key exists so meta.json records it explicitly.
+algorithm: moh
+
+# train     Algorithm 1: the outer loop designs heuristic-optimizers, the inner
+#           loop applies each one to every subtask.
+# inference the paper's inference stage (Section 3.2): skip the outer loop and
+#           apply an already-trained optimizer for `n_iterations` rounds. This
+#           is how an optimizer trained at n=50/200 is pointed at n=400.
+#
+#   python main.py mode=inference \
+#       meta_optimizer=runs/llm/MoH/atsp_gls-gls/<date>_<time>/best_meta_optimizer.py \
+#       problem.problem_size='[400]'
+mode: train
+
+# Which `improve_algorithm` the run starts from. Null means
+# solvers/llm/MoH/problems/meta/seed_algorithm.py — I_0 in the paper, kept
+# deliberately plain so the outer loop's improvement is measurable against it.
+# Required in inference mode. Relative paths are resolved from the repo root.
+meta_optimizer: null
+
+# ── data ──────────────────────────────────────────────────────────────────────
+# Selected in the defaults list above. Which instances the search is scored on,
+# and which are reported:
+#   synthetic  generated matrices only, TSPLIB fully held out (default)
+#   tsplib     the two large rbg instances the ReEvo/MCTS-AHD defaults train on,
+#              for a like-for-like comparison with those runs
+#   multisize  four sizes, the paper's TSP20/50/100/200 training setting
+# Defined in cfg/data/<name>.yaml. `moh.py` forwards `data.name` to every
+# evaluation subprocess as ATSP_DATA, since eval.py has no Hydra context.
+#
+# MoH's subtasks are *sizes*, so whichever config you pick must contain
+# instances at every size in `problem.problem_size`; atsp_utils raises with the
+# available sizes if it does not. That is also why `synthetic` is the default
+# here while `tsplib` is the default on the MCTS-AHD side: the TSPLIB benchmark
+# has no instances at 50 or 200 to split subtasks by.
+#
+#   python main.py problem=atsp_gls data=multisize problem.problem_size='[50,100,200,400]'
+
+# ── search budget ─────────────────────────────────────────────────────────────
+# T in Algorithm 1: outer-loop iterations. The paper fixes T = 10 for training
+# and runs the trained optimizer for 10 more rounds at inference.
+n_iterations: 10
+
+# The size of both populations — H_i for each subtask and P for the optimizers.
+# Section 3.3 and Table 5: 10 is the paper's setting, and its ablation shows 1
+# and 5 are meaningfully worse (0.120% / 0.058% vs 0.035% on TSP100).
+pop_size: 10
+
+# Heuristic evaluations allowed *per subtask*; the total budget is this times
+# the number of subtasks, and moh.py stops when it is spent. -1 or null for
+# unlimited.
+#
+# Upstream defaults to 1000, which is the paper's per-task figure for TSP, where
+# one evaluation is a few seconds of numba-compiled local search on 8 instances.
+# Here an evaluation is ~10 s of pure-NumPy guided local search per instance, so
+# 1000 per subtask is roughly two days. The default of 60 gives a total of 120
+# for the two-subtask default — the same order as the 100 the MCTS-AHD and ReEvo
+# sides use, so the four frameworks are compared at comparable cost, which is
+# the only way a claim about search efficiency means anything. Raise it (and
+# accept the wall clock) when you want the paper's setting.
+max_eval_calls: 60
+
+# Rounds of seed generation before MoH gives up filling a subtask's population,
+# and the factor its acceptance threshold is relaxed by after an unproductive
+# round. Upstream loops unboundedly here: with a badly guessed threshold it
+# calls the API forever and never starts the search.
+seed_rounds: 4
+seed_relax: 1.5
+
+# Appendix D.1: a candidate optimizer is asked how many times its outer loop
+# runs, and rejected above this. One invocation that loops 50 times would spend
+# the entire evaluation budget before the outer loop got a second opinion.
+max_optimizer_iterations: 10
+
+# ── evaluation ────────────────────────────────────────────────────────────────
+# Hard kill for one heuristic evaluation, in seconds. The engines stop
+# themselves at the time limit in cfg/evaluation/<task>.yaml; this catches a
+# candidate that ignores it, e.g. an infinite loop inside the heuristic. Each
+# problem config carries its own, matching the EoH, ReEvo and MCTS-AHD sides
+# task for task. Override as usual: `timeout=120`.
+timeout: ${problem.timeout}
+
+# Which cfg/evaluation/<name>.yaml the engines read. Defaults to the task's own
+# file, which is what you want for a real run. `evaluation_budget=smoke` swaps in
+# a deliberately tiny budget so an offline check finishes in a minute instead of
+# an hour — the only supported reason to change it, since every other value
+# breaks comparability with the other frameworks.
+evaluation_budget: ${problem.problem_name}
+
+seed: 2024      # seeds numpy's RNG for population sampling
+debug: false    # DEBUG-level records in run.log

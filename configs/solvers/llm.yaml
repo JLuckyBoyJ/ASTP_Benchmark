@@ -55,6 +55,43 @@ mcts_ahd:
     atsp_kgls:         configs/llm/MCTS-AHD/cfg/evaluation/atsp_kgls.yaml
     atsp_aco:          configs/llm/MCTS-AHD/cfg/evaluation/atsp_aco.yaml
 
+moh:
+  implementation: solvers/llm/MoH
+  # Hydra entry point; must be launched from its own directory. Use the wrapper
+  # below to launch it from the repository root instead.
+  entry_point: solvers/llm/MoH/main.py
+  run_script: python_scripts/llm/MoH/run_moh_atsp.py
+  eval_script: python_scripts/llm/MoH/eval_moh_atsp.py
+  data_script: python_scripts/llm/MoH/prepare_data.py
+  config_root: configs/llm/MoH/cfg
+  default_model: gpt-4o-mini
+  configs:
+    atsp_constructive: configs/llm/MoH/cfg/problem/atsp_constructive.yaml
+    atsp_gls:          configs/llm/MoH/cfg/problem/atsp_gls.yaml
+    atsp_kgls:         configs/llm/MoH/cfg/problem/atsp_kgls.yaml
+  # Like MCTS-AHD, the data split and the per-task engine budgets are
+  # configuration rather than constants in the evaluation scripts.
+  data_configs:
+    synthetic: configs/llm/MoH/cfg/data/synthetic.yaml
+    tsplib:    configs/llm/MoH/cfg/data/tsplib.yaml
+    multisize: configs/llm/MoH/cfg/data/multisize.yaml
+  evaluation_budgets:
+    atsp_constructive: configs/llm/MoH/cfg/evaluation/atsp_constructive.yaml
+    atsp_gls:          configs/llm/MoH/cfg/evaluation/atsp_gls.yaml
+    atsp_kgls:         configs/llm/MoH/cfg/evaluation/atsp_kgls.yaml
+  # MoH is the only bilevel family here: the outer loop designs the *optimizer*
+  # and the inner loop applies it to several downstream subtasks at once. Those
+  # subtasks are instance SIZES (problem.problem_size), which is why its default
+  # data config is the generated `synthetic` split rather than TSPLIB — a
+  # 19-instance benchmark at 19 irregular sizes cannot be split by size.
+  bilevel: true
+  multi_task: true
+  subtask_axis: problem_size
+  # `mode=inference meta_optimizer=<path>` reuses a trained optimizer on a task
+  # or a size it was never trained on (the paper's inference stage).
+  supports_inference: true
+
+
 hsevo:
   implementation: solvers/llm/HSEvo
   entry_point: solvers/llm/HSEvo/main.py
@@ -71,10 +108,15 @@ hsevo:
 # Which framework covers which task. Empty cells are not gaps to be filled:
 # EoH's `rnr` has no ReEvo/MCTS-AHD counterpart because neither upstream ships
 # a ruin-and-recreate task, and `aco_black_box` is specific to ReEvo's paper.
+# MoH has no `ant_colony_optimisation` entry for a different reason: its inner
+# loop evaluates a candidate once per subtask per iteration, and a stochastic
+# 20-ant colony makes that utility noisy enough that the outer loop would be
+# selecting optimizers on sampling noise. Add it with a fixed seed and a much
+# larger instance count, or not at all.
 task_coverage:
-  greedy_construction:            [eoh, reevo, mcts_ahd, hsevo]
-  guided_local_search:            [eoh, reevo, mcts_ahd, hsevo]
-  knowledge_guided_local_search:  [mcts_ahd]
+  greedy_construction:            [eoh, reevo, mcts_ahd, hsevo, moh]
+  guided_local_search:            [eoh, reevo, mcts_ahd, hsevo, moh]
+  knowledge_guided_local_search:  [mcts_ahd, moh]
   ant_colony_optimisation:        [eoh, reevo, mcts_ahd, hsevo]
   ruin_and_recreate:              [eoh]
   aco_black_box:                  [reevo]

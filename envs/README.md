@@ -11,6 +11,8 @@ neither a local virtualenv nor an API key can land in git.
 | `.env` | your real credentials (git-ignored, never committed) |
 | `llm/EoH/eoh-atsp.yml` | conda spec for the EoH + ATSP stack (Python 3.11) |
 | `llm/EoH/eoh-atsp-pip.txt` | pinned pip requirements, for `venv` users and CI |
+| `llm/<family>/requirements.txt` | pip deps for ReEvo, HSEvo, MCTS-AHD and MoH |
+| `llm/<family>/*.yml` | the matching conda specs |
 
 ## Secrets
 

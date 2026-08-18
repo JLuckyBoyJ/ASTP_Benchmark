@@ -3,20 +3,29 @@
 A benchmark for the **Asymmetric Travelling Salesman Problem** (`d[i][j] != d[j][i]`),
 with LLM-designed heuristics as the first solver family.
 
-Three published LLM-based automatic heuristic design (AHD) frameworks are
-retargeted from symmetric TSP and friends to ATSP. Each published framework is
-vendored close to unmodified; the task, the prompts, the model
-(`gpt-4o-mini`), the data and the logging are ours.
+Published LLM-based automatic heuristic design (AHD) frameworks are retargeted
+from symmetric TSP and friends to ATSP. Each published framework is vendored
+close to unmodified; the task, the prompts, the model (`gpt-4o-mini`), the data
+and the logging are ours.
 
 | framework | paper | what it searches with |
 |---|---|---|
 | [**EoH**](solvers/llm/EoH/README.md) | Liu et al., ICML 2024 | a population plus five prompt strategies |
 | [**ReEvo**](solvers/llm/ReEvo/README.md) | Ye et al., NeurIPS 2024 | a population plus short- and long-term reflection |
+| [**HSEvo**](solvers/llm/HSEvo/README.md) | Dat et al., AAAI 2025 | a population with explicit diversity control |
 | [**MCTS-AHD**](solvers/llm/MCTS-AHD/README.md) | Zheng et al., ICML 2025 | Monte Carlo tree search over every heuristic generated so far |
+| [**MoH**](solvers/llm/MoH/README.md) | Shi et al., ICLR 2026 | a second loop that designs the *optimizer*, across several instance sizes at once |
 
-All three design heuristics for the **same engines**, on the **same matrices**,
+They all design heuristics for the **same engines**, on the **same matrices**,
 against the **same objective** — mean optimality gap in percent — so a
 difference in the reported gap is a difference between the search methods.
+
+MoH is the odd one out and worth a sentence: the other four search over
+heuristics with a fixed evolutionary operator, while MoH searches over the
+*operator* itself in an outer loop and applies each candidate to several
+downstream subtasks — here, ATSP instances of different sizes — in an inner
+loop. So it reports one number per size plus the optimizer that produced them,
+where the others report one heuristic.
 
 ---
 
@@ -48,7 +57,9 @@ evaluation/metrics.py         solver-agnostic gaps, summaries, tables
 bash scripts/setup_environment.sh          # deps + EoH + data + tests
 
 pip install -r envs/llm/ReEvo/requirements.txt      # if you want ReEvo
+pip install -r envs/llm/HSEvo/requirements.txt      # if you want HSEvo
 pip install -r envs/llm/MCTS-AHD/requirements.txt   # if you want MCTS-AHD
+pip install -r envs/llm/MoH/requirements.txt        # if you want MoH
 
 cp envs/.env.example envs/.env             # secrets live here, git-ignored
 $EDITOR envs/.env                          # set OPENAI_API_KEY=sk-...
@@ -68,22 +79,29 @@ never written to disk.
 bash scripts/llm/EoH/smoke.sh
 bash scripts/llm/ReEvo/smoke.sh
 bash scripts/llm/MCTS-AHD/smoke.sh
+bash scripts/llm/MoH/smoke.sh
+
+# MoH's default split is generated, so build it once (the others use TSPLIB)
+python python_scripts/llm/MoH/prepare_data.py --config synthetic
 
 # evolve, benchmark, tabulate
 REPEATS=3 bash scripts/llm/EoH/run_all.sh
 REPEATS=3 bash scripts/llm/ReEvo/run_all.sh
 REPEATS=3 bash scripts/llm/MCTS-AHD/run_all.sh
+REPEATS=3 bash scripts/llm/MoH/run_all.sh
 
 bash scripts/llm/MCTS-AHD/benchmark.sh
+bash scripts/llm/MoH/benchmark.sh
 
-# one table for all three frameworks
+# one table for every framework
 python python_scripts/llm/MCTS-AHD/generate_paper_tables.py \
     --runs-root runs/llm --out runs/benchmark_tables.md
 ```
 
 **The full command reference for each family lives in its own README:
 [EoH](solvers/llm/EoH/README.md) · [ReEvo](solvers/llm/ReEvo/README.md) ·
-[MCTS-AHD](solvers/llm/MCTS-AHD/README.md).**
+[HSEvo](solvers/llm/HSEvo/README.md) ·
+[MCTS-AHD](solvers/llm/MCTS-AHD/README.md) · [MoH](solvers/llm/MoH/README.md).**
 
 ---
 
@@ -92,16 +110,26 @@ python python_scripts/llm/MCTS-AHD/generate_paper_tables.py \
 Each framework designs the key heuristic function inside a fixed algorithmic
 framework. The frameworks do not all cover the same tasks:
 
-| task | LLM designs | EoH | ReEvo | MCTS-AHD |
-|---|---|:--:|:--:|:--:|
-| greedy construction | the next-city rule | ✓ | ✓ | ✓ |
-| guided local search | the arc-badness guide | ✓ | ✓ | ✓ |
-| knowledge-guided local search | a dynamic arc-badness rule | | | ✓ |
-| ant colony optimisation | pheromone (EoH) / desirability (ReEvo, MCTS-AHD) | ✓ | ✓ | ✓ |
-| ruin-and-recreate | the destroy operator | ✓ | | |
-| ACO, black-box view | edge scores, with no routing hints | | ✓ | |
+| task | LLM designs | EoH | ReEvo | HSEvo | MCTS-AHD | MoH |
+|---|---|:--:|:--:|:--:|:--:|:--:|
+| greedy construction | the next-city rule | ✓ | ✓ | ✓ | ✓ | ✓ |
+| guided local search | the arc-badness guide | ✓ | ✓ | ✓ | ✓ | ✓ |
+| knowledge-guided local search | a dynamic arc-badness rule | | | | ✓ | ✓ |
+| ant colony optimisation | pheromone (EoH) / desirability (others) | ✓ | ✓ | ✓ | ✓ | |
+| ruin-and-recreate | the destroy operator | ✓ | | | | |
+| ACO, black-box view | edge scores, with no routing hints | | ✓ | | | |
 
 The coverage table is also machine-readable, in `configs/solvers/llm.yaml`.
+
+Two entries need a footnote. **MoH's guided local search is a larger design
+space than the others':** ReEvo, HSEvo and MCTS-AHD ask for a *static* guide
+matrix computed once per instance, while MoH asks for a function called at every
+perturbation step, which is upstream MoH's own formulation. A heuristic from one
+therefore cannot be dropped into the other's engine, though both run over the
+same instances and report the same objective. **MoH has no ACO task** because
+its inner loop evaluates each candidate once per subtask per iteration, and a
+stochastic 20-ant colony makes that utility noisy enough that the outer loop
+would be selecting optimizers on sampling noise.
 
 Baselines on all 19 TSPLIB ATSP instances — the bars a designed heuristic has to
 clear. Note the two improvement tasks are scored at a 10 s per-instance budget
@@ -128,6 +156,19 @@ sides — that is deliberate and measured, and it must be declared: report the
 (`--exclude-train`) for generalisation claims. The EoH side trains on synthetic
 instances only; ReEvo accepts `ATSP_TRAIN_SPLIT=synthetic` and MCTS-AHD
 `data=synthetic` to do the same.
+
+**MoH defaults to `data=synthetic`, so nothing it reports is in-sample.** That is
+not a nicety: its downstream subtasks are instance *sizes*, and a 19-instance
+benchmark at 19 irregular sizes cannot be split by size. `data=tsplib` with
+`problem.problem_size='[323,403]'` reproduces the ReEvo/MCTS-AHD split for a
+like-for-like comparison, at the cost of one instance per subtask.
+
+Budgets are set so the frameworks cost the same order of magnitude: 100
+heuristic evaluations for ReEvo and MCTS-AHD, and 60 per subtask (120 total on
+the two-subtask default) for MoH. A claim about search efficiency only means
+something when the budget is held fixed, so the per-instance engine budgets in
+`configs/llm/*/cfg/evaluation/` are identical across families and the instance
+counts are the knob to turn if a run is too slow.
 
 ## Notes
 
@@ -159,6 +200,15 @@ instances only; ReEvo accepts `ATSP_TRAIN_SPLIT=synthetic` and MCTS-AHD
                and Hua, Chuanbo and Kim, Haeyeon and Park, Jinkyoo and Song, Guojie},
   booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
   year      = {2024}
+}
+
+@inproceedings{shi2026moh,
+  title     = {Generalizable Heuristic Generation Through Large Language Models
+               with Meta-Optimization},
+  author    = {Shi, Yiding and Zhou, Jianan and Song, Wen and Bi, Jieyi and
+               Wu, Yaoxin and Cao, Zhiguang and Zhang, Jie},
+  booktitle = {International Conference on Learning Representations (ICLR)},
+  year      = {2026}
 }
 
 @inproceedings{zheng2025mctsahd,

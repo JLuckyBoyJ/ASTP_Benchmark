@@ -1,0 +1,28 @@
+_target_: utils.llm_client.openai.OpenAIClient
+
+# The ATSP benchmark standardises on gpt-4o-mini, which is also the base LLM for
+# every headline result in the MoH paper (Section 4: "All experiments use GPT
+# 4o-mini (2024-07-18) as base LLM"). Table 4 compares o1-mini, DeepSeek-v3 and
+# Qwen-Plus; reach those through llm_client=litellm rather than by editing this.
+model: gpt-4o-mini
+
+# The paper's setting for the design calls. High temperature is not incidental
+# here: both loops depend on a batch of responses to one prompt being different
+# from each other.
+temperature: 1.0
+
+# Parallel requests per prompt_batch call, and the value a generated optimizer
+# sees as `language_model.batch_size`.
+batch_size: 5
+
+api_key: ${oc.env:OPENAI_API_KEY,null}
+
+# Seconds to wait for one completion before giving up and reissuing it. The
+# SDK's own default is 600, which turns a single stalled request into a ten
+# minute pause; MoH's outer loop is sequential, so a stall stops everything.
+timeout: 120.0
+max_retries: 6
+
+# Set to a directory to keep the raw request/response JSON as well. Usually
+# unnecessary: llm_calls.jsonl in the run directory already has all of it.
+cache_dir: null

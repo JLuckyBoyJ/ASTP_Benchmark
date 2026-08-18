@@ -18,15 +18,24 @@
 # └── llm/
 #     ├── EoH/                 one YAML per task, all extending base.yaml
 #     ├── ReEvo/cfg/           Hydra: config.yaml + problem/ + llm_client/
-#     └── MCTS-AHD/cfg/        Hydra: config.yaml + problem/ + llm_client/
+#     ├── HSEvo/cfg/           Hydra: config.yaml + problem/ + llm_client/
+#     ├── MCTS-AHD/cfg/        Hydra: config.yaml + problem/ + llm_client/
+#     │                        + data/ (splits) + evaluation/ (engine budgets)
+#     └── MoH/cfg/             Hydra: config.yaml + problem/ + llm_client/
 #                              + data/ (splits) + evaluation/ (engine budgets)
 #
-# Only MCTS-AHD keeps its data splits and evaluation budgets in configs/. For
+# MCTS-AHD and MoH keep their data splits and evaluation budgets in configs/. For
 # EoH they are in the per-task YAML; for ReEvo they are constants in
 # solvers/llm/ReEvo/atsp_utils.py and at the top of each problems/*/eval.py,
 # because ReEvo's eval.py runs as a subprocess with no config context. MCTS-AHD
-# solves that with a plain-YAML loader (solvers/llm/MCTS-AHD/atsp_utils.py:
+# and MoH solve that with a plain-YAML loader (solvers/llm/<family>/atsp_utils.py:
 # load_config) rather than by hardcoding.
+#
+# MoH is also the only family whose *problem* config carries a list rather than a
+# scalar: `problem.problem_size: [50, 200]` defines its downstream subtasks, one
+# per size, weighted by size in the meta-utility. Its data config must contain
+# instances at every size named there — python_scripts/llm/MoH/prepare_data.py
+# --check-only verifies that without generating anything.
 
 name: atsp-benchmark
 objective: mean_gap_percent   # every solver family reports this, lower is better

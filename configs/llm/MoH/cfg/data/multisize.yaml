@@ -1,0 +1,37 @@
+# Four subtasks, mirroring the paper's TSP20 / 50 / 100 / 200 training setting.
+#
+#   python python_scripts/llm/MoH/prepare_data.py --config multisize
+#   cd solvers/llm/MoH
+#   python main.py problem=atsp_gls data=multisize problem.problem_size='[50,100,200,400]'
+#
+# This is the setting Figure 1 of the paper is about: MoH trained across sizes
+# generalises where a single-size run does not. It is also four times the
+# evaluation cost of the default, since a meta-utility call runs the inner loop
+# once per subtask — budget for it, or lower max_eval_calls and accept a shorter
+# search.
+#
+# n=400 is here because the generalisation claim is about the large end, and
+# because it is the only size in this file with no counterpart in the default
+# split — training on it is the difference between a heuristic that scales and
+# one that was never asked to.
+name: multisize
+description: >
+  Four generated ATSP sizes (50 / 100 / 200 / 400), reported on TSPLIB.
+
+val: &search_split
+  - {source: synthetic, family: asymmetric_clustered,   size: 50,  count: 2, seed: 2024, effort: medium}
+  - {source: synthetic, family: scheduling_constrained, size: 50,  count: 2, seed: 2024, effort: medium}
+  - {source: synthetic, family: asymmetric_clustered,   size: 100, count: 2, seed: 2024, effort: medium}
+  - {source: synthetic, family: uniform,                size: 100, count: 1, seed: 2024, effort: medium}
+  - {source: synthetic, family: asymmetric_clustered,   size: 200, count: 1, seed: 2024, effort: low}
+  - {source: synthetic, family: scheduling_constrained, size: 200, count: 1, seed: 2024, effort: low}
+  - {source: synthetic, family: uniform,                size: 200, count: 1, seed: 2024, effort: low}
+  - {source: synthetic, family: scheduling_constrained, size: 400, count: 1, seed: 2024, effort: low}
+  - {source: synthetic, family: uniform,                size: 400, count: 1, seed: 2024, effort: low}
+
+train: *search_split
+
+test:
+  source: tsplib
+  dir: data/raw/atsp
+  best_known: data/raw/atsp/bestSolutions.txt

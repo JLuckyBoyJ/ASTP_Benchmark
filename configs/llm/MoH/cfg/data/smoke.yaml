@@ -1,0 +1,25 @@
+# Two tiny generated instances, for offline checks only.
+#
+#   python main.py problem=atsp_gls llm_client@heu=stub llm_client@meta=stub \
+#       data=smoke evaluation_budget=smoke problem.problem_size='[20,40]'
+#
+# Sizes 20 and 40 keep MoH's multi-task structure — two subtasks, unequal
+# weights — while costing seconds rather than minutes, so a `--smoke` run
+# exercises the size filtering and the size-weighted utility of Eq. (2) rather
+# than skipping past them. The test split is a third instance the search never
+# sees, so the post-run validation step is exercised too.
+#
+# Nothing measured under this config is a result. Instances this small are
+# solved to optimality by the seed heuristic, so every utility is 0.000 and the
+# search has nothing to distinguish candidates by.
+name: smoke
+description: Tiny generated split for offline plumbing checks. Not a measurement.
+
+val: &search_split
+  - {source: synthetic, family: asymmetric_clustered,   size: 20, count: 1, seed: 7, effort: low}
+  - {source: synthetic, family: scheduling_constrained, size: 40, count: 1, seed: 7, effort: low}
+
+train: *search_split
+
+test:
+  - {source: synthetic, family: uniform, size: 20, count: 1, seed: 99, effort: low}

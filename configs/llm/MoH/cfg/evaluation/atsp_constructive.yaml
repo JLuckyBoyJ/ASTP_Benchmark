@@ -1,0 +1,12 @@
+# Engine budget for the greedy-construction task.
+#
+# Construction has no iteration budget: the tour is built once and that is the
+# whole evaluation. Every mood therefore runs identically, which is why this
+# file is short — it exists so the task is configured the same way as the others
+# rather than being a special case whose settings hide in the code.
+name: atsp_constructive
+description: One greedy pass per instance; the rule is called n-1 times.
+
+train: {}
+val: {}
+test: {}

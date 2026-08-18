@@ -1,0 +1,34 @@
+# Engine budget for guided local search.
+#
+# Read by solvers/llm/MoH/problems/atsp_gls/eval.py through atsp_utils.budget().
+# Held IDENTICAL to configs/llm/MCTS-AHD/cfg/evaluation/atsp_gls.yaml and to the
+# ReEvo side, so a heuristic evolved by any framework is scored under the same
+# conditions and a gap difference is a difference between the searches.
+#
+# If you want a MoH run to finish faster, cut the instance *counts* in
+# cfg/data/<config>.yaml, not these numbers: shrinking the per-instance budget
+# breaks the comparison and, worse, changes which heuristics win — a guide tuned
+# under a halved budget front-loads its good decisions and loses to the classic
+# cost rule once the search is allowed to run to the benchmark's length.
+name: atsp_gls
+description: Guided local search with an LLM-designed per-iteration cost update.
+
+perturbation_moves: 30
+
+train: &search_budget
+  # `auto` = as many iterations as `equivalent_seconds` of search buys on this
+  # instance size, from data/cache/gls_calibration.json (regenerate with
+  # `bash scripts/llm/MoH/calibrate.sh`). Bounding training by ITERATIONS rather
+  # than wall clock keeps a candidate's score independent of machine load, while
+  # the iteration count still spends the benchmark's budget.
+  iter_limit: auto
+  equivalent_seconds: 10.0
+  time_limit: null
+
+# MoH's utility calls use mode="val" — Eq. (1) scores heuristics on D_i, the
+# validation dataset — so this is the budget the search actually runs under.
+val: *search_budget
+
+test:
+  iter_limit: 1000
+  time_limit: 10.0

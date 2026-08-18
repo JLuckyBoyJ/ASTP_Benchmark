@@ -1,0 +1,44 @@
+# ATSP guided local search — MoH's flagship improvement task.
+#
+# The LLM designs `update_edge_distance`, called at every perturbation step with
+# the current local optimum and the penalty history. That is upstream MoH's own
+# TSP-GLS design space, kept as-is; ReEvo and MCTS-AHD ask for a *static* guide
+# matrix instead, which is a strictly smaller space. The engine, the instances
+# and the objective are identical across all of them, so the gap difference is a
+# difference between the search methods, not between the harnesses.
+problem_name: atsp_gls
+problem_type: gls
+obj_type: min
+func_name: update_edge_distance
+
+# MoH's downstream subtasks ARE these sizes: this list becomes
+# `atsp_gls-50`, `atsp_gls-200`, each scored only on instances of its own size,
+# and Eq. (2) weights their utilities by w_i = s_i / sum_j s_j (here 0.2 / 0.8).
+#
+# Two sizes rather than four is the paper's own GLS ablation setting (Section
+# 4.2: "using TSP100 and TSP200 as the downstream tasks during training"), and
+# each added size multiplies the cost of every meta-utility evaluation by
+# roughly one more subtask. Add 100 when you have the budget:
+#
+#   python main.py problem=atsp_gls problem.problem_size='[50,100,200]'
+#
+# Every size listed must exist in the active data config, or atsp_utils raises
+# and tells you which sizes it has.
+problem_size: [50, 200]
+
+# Seed-acceptance threshold per size: a sampled seed heuristic joins the
+# population only if its utility (mean gap %) is below this. Too tight and the
+# seeding phase burns API calls finding nothing — moh.py then relaxes it by
+# `seed_relax` per round and warns. Calibrate from the seed rule's own score:
+#
+#   bash scripts/llm/MoH/baselines.sh
+threshold:
+  50: 20.0
+  200: 25.0
+threshold_default: 25.0
+
+# Two subtask instances of ~10 s of guided local search each, plus interpreter
+# start-up; matches configs/llm/MCTS-AHD/cfg/problem/atsp_gls.yaml.
+timeout: 300
+
+description: Solving the Asymmetric Traveling Salesman Problem (ATSP) via guided local search. ATSP requires finding the shortest closed tour that visits every city once and returns to the start, where the cost of travelling from city i to city j differs from the cost of travelling from j to i.

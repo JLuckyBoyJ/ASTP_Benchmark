@@ -1,0 +1,3 @@
+import numpy as np
+def select_next_node(current_node, destination_node, unvisited_nodes, distance_matrix):
+    return min(unvisited_nodes, key=lambda node: distance_matrix[current_node][node])

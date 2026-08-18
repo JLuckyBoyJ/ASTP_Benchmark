@@ -1,0 +1,26 @@
+# A deliberately tiny engine budget, for offline checks only.
+#
+#   python main.py problem=atsp_gls llm_client@heu=stub llm_client@meta=stub \
+#       data=smoke evaluation_budget=smoke problem.problem_size='[20,40]'
+#
+# Selected by `evaluation_budget=smoke`, which `moh.py` forwards to every
+# evaluation subprocess as ATSP_EVAL_BUDGET. Used by
+# `python_scripts/llm/MoH/run_moh_atsp.py --smoke` and by
+# `scripts/llm/MoH/smoke.sh`, so a free dry run finishes in about a minute
+# rather than the hour a real budget takes.
+#
+# Serves all three tasks: the two improvement tasks read these numbers and the
+# constructive task has no iteration budget at all. Nothing scored under this
+# file is comparable with anything — that is the point of keeping it separate
+# from the real budgets rather than lowering theirs.
+name: smoke
+description: Tiny budget for offline plumbing checks. Not a measurement.
+
+perturbation_moves: 5
+
+train: &smoke_budget
+  iter_limit: 20
+  time_limit: 3.0
+
+val: *smoke_budget
+test: *smoke_budget

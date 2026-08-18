@@ -1,0 +1,14 @@
+# @package _global_
+# MoH must be launched from its own directory (problems/ and prompts/ are
+# resolved relative to it), so run outputs are written three levels up into the
+# repository's runs/ tree — alongside the EoH, ReEvo, HSEvo and MCTS-AHD runs, so
+# every framework is inspected and tabulated the same way:
+#
+#   runs/llm/MoH/<problem_name>-<problem_type>/<date>_<time>/
+hydra:
+  run:
+    dir: ../../../runs/llm/MoH/${hydra.job.name}/${now:%Y-%m-%d}_${now:%H-%M-%S}
+    subdir: ${hydra.job.num}_${hydra.job.override_dirname}
+  sweep:
+    dir: ../../../runs/llm/MoH/${hydra.job.name}/${now:%Y-%m-%d}_${now:%H-%M-%S}
+    subdir: ${hydra.job.num}_${hydra.job.override_dirname}

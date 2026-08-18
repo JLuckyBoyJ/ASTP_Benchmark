@@ -1,0 +1,3 @@
+def update_edge_distance(edge_distance, local_opt_tour, edge_n_used):
+    updated_edge_distance = np.copy(edge_distance)
+    return updated_edge_distance / (1.0 + edge_n_used)

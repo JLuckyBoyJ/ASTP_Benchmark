@@ -1,0 +1,14 @@
+# Offline fake model: answers every kind of prompt MoH sends (directions,
+# heuristics, optimizers, the loop-depth audit) with something trivial but
+# well-formed. For checking that a task, a config or a code change works end to
+# end without spending anything.
+#
+#   python main.py problem=atsp_gls llm_client@heu=stub llm_client@meta=stub \
+#       n_iterations=1 pop_size=3 max_eval_calls=12
+#
+# Nothing it produces is a research result.
+_target_: utils.llm_client.stub.StubClient
+model: stub
+temperature: 1.0
+batch_size: 3
+seed: 0

@@ -1,0 +1,16 @@
+# Any provider LiteLLM supports, addressed as <provider>/<model>.
+#
+#   python main.py llm_client@heu=litellm llm_client@meta=litellm \
+#       heu.model=anthropic/claude-sonnet-4-5 meta.model=anthropic/claude-sonnet-4-5
+#
+# Table 4 of the paper sweeps gpt-4o-mini, o1-mini, DeepSeek-v3 and Qwen-Plus;
+# this is how to reproduce that without a client per vendor. The benchmark's
+# default stays gpt-4o-mini so the frameworks remain comparable.
+_target_: utils.llm_client.litellm.LiteLLMClient
+model: deepseek/deepseek-chat
+temperature: 1.0
+batch_size: 5
+api_key: ${oc.env:DEEPSEEK_API_KEY,null}
+timeout: 120.0
+max_retries: 6
+cache_dir: null

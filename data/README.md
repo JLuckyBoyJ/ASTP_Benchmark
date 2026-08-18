@@ -23,16 +23,37 @@ data/
 | EoH | `data/synthetic/**` | `data/raw/atsp` | `configs/llm/EoH/*.yaml` → `data.train` / `data.test` |
 | ReEvo | `data/raw/atsp` (rbg323, rbg403) | `data/raw/atsp` | `solvers/llm/ReEvo/atsp_utils.py` → `TRAIN_SPLIT` / `TEST_SPLIT` |
 | MCTS-AHD | depends on the data config | `data/raw/atsp` | `configs/llm/MCTS-AHD/cfg/data/*.yaml` |
+| MoH | `data/synthetic/**`, per subtask size | `data/raw/atsp` | `configs/llm/MoH/cfg/data/*.yaml` |
 
-MCTS-AHD is the only one whose split is a config file rather than a constant, so
-it can be switched per run:
+MCTS-AHD and MoH are the ones whose split is a config file rather than a
+constant, so it can be switched per run:
 
 ```bash
 cd solvers/llm/MCTS-AHD
 python main.py problem=atsp_gls data=tsplib            # default, = ReEvo's split
 python main.py problem=atsp_gls data=synthetic         # no TSPLIB instance is seen
 python main.py problem=atsp_gls data=mcts_ahd_native   # upstream's protocol
+
+cd solvers/llm/MoH
+python main.py problem=atsp_gls data=synthetic         # default: TSPLIB fully held out
+python main.py problem=atsp_gls data=multisize problem.problem_size='[50,100,200,400]'
+python main.py problem=atsp_gls data=tsplib problem.problem_size='[323,403]'
 ```
+
+## Why MoH's default split is generated and MCTS-AHD's is not
+
+MoH is multi-task, and its downstream subtasks are instance **sizes**:
+`problem.problem_size: [50, 200]` becomes the subtasks `atsp_gls-50` and
+`atsp_gls-200`, each scored only on instances of its own size, with the
+size-weighted utility of Eq. (2). TSPLIB ATSP has nineteen instances at nineteen
+irregular sizes (17, 33, 34, ... 443), so it cannot be split by size at all — at
+most one instance per subtask, which makes each utility a single noisy number.
+Generated instances can, which is why `configs/llm/MoH/cfg/data/synthetic.yaml`
+is MoH's default and the whole benchmark stays held out.
+
+`data/cache/moh/<data_config>/<task>/seed_pop_<subtask>.json` caches the seeded
+heuristic populations, keyed by data config so two configs never share one. It is
+git-ignored; delete it to force a fresh seeding phase.
 
 ## Two generators, one cache
 
@@ -46,11 +67,20 @@ python data/generate_atsp.py --all --force                # recompute references
 
 python python_scripts/llm/MCTS-AHD/prepare_data.py --config synthetic
 python python_scripts/llm/MCTS-AHD/prepare_data.py --all  # every MCTS-AHD config
+
+python python_scripts/llm/MoH/prepare_data.py --config synthetic
+python python_scripts/llm/MoH/prepare_data.py --all       # every MoH config
+python python_scripts/llm/MoH/prepare_data.py --check-only  # size sanity, no work
 ```
 
-`prepare_data.py` builds only what one MCTS-AHD data config references, so adding
-a config there never lengthens anybody else's setup. A TSPLIB-only config prints
-"nothing to generate" and exits.
+Each `prepare_data.py` builds only what its own family's data configs reference,
+so adding a config there never lengthens anybody else's setup. A TSPLIB-only
+config prints "nothing to generate" and exits.
+
+MoH's version also **checks the sizes**: because its subtasks are sizes, a data
+config and a problem config disagree the moment one names a size the other lacks,
+and the run would then fail at its first evaluation — after the seeding prompts
+had already been paid for. `--check-only` reports every mismatch in seconds.
 
 ## How MCTS-AHD's original data handling maps onto this folder
 

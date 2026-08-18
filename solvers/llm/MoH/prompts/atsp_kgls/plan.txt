@@ -1,0 +1,9 @@
+Provide several high-level directions for improving the knowledge-guided badness rule for the Asymmetric Travelling Salesman Problem above and its corresponding utility, each aimed at minimizing the utility as a result. The utility is the mean optimality gap in percent, so lower is better. Bear in mind what the rule can see that plain guided local search cannot: the whole cost matrix, the arc's position in the current tour, the penalty history, and the iteration counter, which permits a schedule that explores early and exploits late. Bear in mind too what makes ATSP different from symmetric TSP: row minima and column minima differ, the imbalance d[i][j] - d[j][i] is itself a signal, and scheduling-like instances contain arcs of cost exactly zero. You can choose to propose suggestions to improve the current solution (Start with label 'Refinement') or propose alternative novel approaches (Start with label 'Innovation'). Format your response as a JSON codeblock below, including the appropriate label for each suggestion.
+{{
+"direction": [
+    {{"content": "Refinement: Your first piece of direction suggestion here."}},
+    {{"content": "Refinement: Your second piece of direction suggestion here."}},
+    {{"content": "Innovation: Your third piece of direction suggestion here."}},
+    {{"content": "Innovation: Your fourth piece of direction suggestion here."}}
+]
+}}

@@ -1,0 +1,27 @@
+# ATSP greedy construction: the LLM designs the next-city selection rule.
+#
+# The cheapest task here — one pass per instance, no iteration budget — so it
+# carries three subtask sizes rather than two. It is also the task where MoH's
+# size weighting bites hardest: a rule that reads only the outgoing cost is fine
+# at n=50 and strands the tour at n=400.
+problem_name: atsp_constructive
+problem_type: constructive
+obj_type: min
+func_name: select_next_node
+
+problem_size: [50, 200]
+
+# Greedy construction on ATSP starts far from the optimum — nearest neighbour is
+# routinely 20-40% above it — so the seed thresholds are much looser than the
+# improvement tasks'. Check the actual bar with:
+#   python python_scripts/llm/MoH/eval_moh_atsp.py --task atsp_constructive --seed-heuristic
+threshold:
+  50: 45.0
+  200: 50.0
+threshold_default: 50.0
+
+# One greedy pass per instance; the rule is called n-1 times, so the deadline
+# only bites on a pathological candidate. Matches the other frameworks.
+timeout: 120
+
+description: Solving the Asymmetric Traveling Salesman Problem (ATSP) by constructing a tour step by step. ATSP requires finding the shortest closed tour that visits every city once and returns to the start, where the cost of travelling from city i to city j differs from the cost of travelling from j to i.

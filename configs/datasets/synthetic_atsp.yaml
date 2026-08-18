@@ -12,13 +12,15 @@
 #       scripts/setup_environment.sh runs).
 #
 #   python python_scripts/llm/MCTS-AHD/prepare_data.py --config <name>
-#       builds only what one MCTS-AHD data config references, so adding a
-#       config there never lengthens anybody else's setup.
+#   python python_scripts/llm/MoH/prepare_data.py      --config <name>
+#       each builds only what one of its own data configs references, so adding
+#       a config there never lengthens anybody else's setup.
 #
 # Who reads what:
 #   EoH        configs/llm/EoH/*.yaml               -> data.train
 #   ReEvo      solvers/llm/ReEvo/atsp_utils.py      -> TRAIN_SPLIT
 #   MCTS-AHD   configs/llm/MCTS-AHD/cfg/data/*.yaml -> train / val
+#   MoH        configs/llm/MoH/cfg/data/*.yaml      -> val (= train; one split)
 
 name: synthetic_atsp
 source: synthetic
@@ -76,11 +78,37 @@ mcts_ahd_sets:
   - {family: uniform,              size: 50,  count: 8,  seed: 4048, effort: medium}
   - {family: asymmetric_clustered, size: 200, count: 4,  seed: 4048, effort: low}
 
+# Sets referenced by the MoH data configs, on top of the defaults above.
+# Built by python_scripts/llm/MoH/prepare_data.py, into the same cache.
+#
+# MoH is the only family whose downstream tasks are instance SIZES: one run
+# trains a single meta-optimizer against `atsp_gls-50`, `atsp_gls-200`, ... and
+# weights their utilities by size (Eq. 2 of the paper). So its sets come in
+# matched groups per size rather than as one mixed pool, and the counts are
+# small because each subtask is evaluated once per candidate heuristic.
+moh_sets:
+  # cfg/data/synthetic.yaml — the default two-subtask split
+  - {family: asymmetric_clustered,   size: 50,  count: 2, seed: 2024, effort: medium}
+  - {family: scheduling_constrained, size: 50,  count: 2, seed: 2024, effort: medium}
+  - {family: asymmetric_clustered,   size: 200, count: 1, seed: 2024, effort: low}
+  - {family: scheduling_constrained, size: 200, count: 1, seed: 2024, effort: low}
+  - {family: uniform,                size: 200, count: 1, seed: 2024, effort: low}
+  # cfg/data/multisize.yaml — four subtasks, the paper's TSP20/50/100/200 setting
+  - {family: asymmetric_clustered,   size: 100, count: 2, seed: 2024, effort: medium}
+  - {family: uniform,                size: 100, count: 1, seed: 2024, effort: medium}
+  - {family: scheduling_constrained, size: 400, count: 1, seed: 2024, effort: low}
+  - {family: uniform,                size: 400, count: 1, seed: 2024, effort: low}
+
 notes:
   - Every instance is seeded, so regenerating yields byte-identical matrices.
-  - Paper-scale training set for GLS is {family: uniform, size: 100, count: 64}.
-  - A synthetic surrogate for the TSPLIB rbg family was built, measured and
+  # NOTE: quoted. An unquoted scalar containing `{...}` is parsed as a YAML flow
+  # mapping, which made this whole file fail yaml.safe_load — and every consumer
+  # of it fail with it.
+  - "Paper-scale training set for GLS is {family: uniform, size: 100, count: 64}."
+  # Quoted for the same reason: `rejected: it ...` at the start of a continuation
+  # line is a mapping key to YAML, not prose.
+  - "A synthetic surrogate for the TSPLIB rbg family was built, measured and
     rejected: it matches rbg on every structural statistic and still ranks
     heuristics differently (rank correlation +0.35 over a ten-heuristic pool).
     That is why the ReEvo and MCTS-AHD defaults train on the real rbg instances
-    instead. See configs/llm/MCTS-AHD/cfg/data/tsplib.yaml.
+    instead. See configs/llm/MCTS-AHD/cfg/data/tsplib.yaml."

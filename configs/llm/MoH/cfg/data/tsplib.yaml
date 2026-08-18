@@ -1,0 +1,37 @@
+# Like-for-like with the ReEvo and MCTS-AHD defaults: train on the two large
+# TSPLIB rbg instances, report on all nineteen.
+#
+#   cd solvers/llm/MoH
+#   python main.py problem=atsp_gls data=tsplib problem.problem_size='[323,403]'
+#
+# READ THIS BEFORE USING IT
+# MoH's subtasks are sizes, so `problem.problem_size` must name sizes that exist
+# in this split — here 323 and 403, the sizes of rbg323 and rbg403. The default
+# [50, 200] does not exist in TSPLIB and atsp_utils will say so.
+#
+# Two consequences, both worth being explicit about:
+#   * each subtask has exactly ONE instance, so the utility is a single gap and
+#     is correspondingly noisy — the outer loop is selecting optimizers on a
+#     two-number signal;
+#   * rbg323 and rbg403 are then in both the search split and the reported set,
+#     so `--exclude-train` is the honest number and the 19-instance mean is the
+#     comparable one (ReEvo and MCTS-AHD train on the same pair).
+#
+# It exists for the comparison, not because it is the better protocol. For a
+# result, use `synthetic`.
+name: tsplib
+description: >
+  Evolve on rbg323 and rbg403, report on all nineteen TSPLIB ATSP instances.
+
+val: &search_split
+  source: tsplib
+  dir: data/raw/atsp
+  best_known: data/raw/atsp/bestSolutions.txt
+  names: [rbg323, rbg403]
+
+train: *search_split
+
+test:
+  source: tsplib
+  dir: data/raw/atsp
+  best_known: data/raw/atsp/bestSolutions.txt
