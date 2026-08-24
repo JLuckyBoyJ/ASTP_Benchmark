@@ -75,10 +75,11 @@ def main(argv=None) -> int:
     parser.add_argument("--meta-model", default=None,
                         help="a different model for the outer loop only")
     parser.add_argument("--iterations", type=int, default=None,
-                        help="outer-loop iterations T (config default: 10)")
-    parser.add_argument("--pop-size", type=int, default=None)
+                        help="outer-loop iterations T (config default: 15)")
+    parser.add_argument("--pop-size", type=int, default=None,
+                        help="population size (config default: 15)")
     parser.add_argument("--max-eval-calls", type=int, default=None,
-                        help="heuristic evaluations per subtask (default: 60)")
+                        help="heuristic evaluations per subtask (config default: 300)")
     parser.add_argument("--sizes", type=int, nargs="+", default=None,
                         help="the subtask sizes, e.g. --sizes 50 200. Every size "
                              "must exist in the chosen data config.")

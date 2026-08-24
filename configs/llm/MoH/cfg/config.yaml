@@ -63,28 +63,16 @@ meta_optimizer: null
 #   python main.py problem=atsp_gls data=multisize problem.problem_size='[50,100,200,400]'
 
 # ── search budget ─────────────────────────────────────────────────────────────
-# T in Algorithm 1: outer-loop iterations. The paper fixes T = 10 for training
-# and runs the trained optimizer for 10 more rounds at inference.
-n_iterations: 10
+# T in Algorithm 1: outer-loop iterations.
+n_iterations: 15
 
 # The size of both populations — H_i for each subtask and P for the optimizers.
-# Section 3.3 and Table 5: 10 is the paper's setting, and its ablation shows 1
-# and 5 are meaningfully worse (0.120% / 0.058% vs 0.035% on TSP100).
-pop_size: 10
+pop_size: 15
 
 # Heuristic evaluations allowed *per subtask*; the total budget is this times
 # the number of subtasks, and moh.py stops when it is spent. -1 or null for
 # unlimited.
-#
-# Upstream defaults to 1000, which is the paper's per-task figure for TSP, where
-# one evaluation is a few seconds of numba-compiled local search on 8 instances.
-# Here an evaluation is ~10 s of pure-NumPy guided local search per instance, so
-# 1000 per subtask is roughly two days. The default of 60 gives a total of 120
-# for the two-subtask default — the same order as the 100 the MCTS-AHD and ReEvo
-# sides use, so the four frameworks are compared at comparable cost, which is
-# the only way a claim about search efficiency means anything. Raise it (and
-# accept the wall clock) when you want the paper's setting.
-max_eval_calls: 60
+max_eval_calls: 300
 
 # Rounds of seed generation before MoH gives up filling a subtask's population,
 # and the factor its acceptance threshold is relaxed by after an unproductive

@@ -204,6 +204,35 @@ TSP runs is now `problems/meta/paper_optimizer.py`. It is not a result here —
 it was found on symmetric TSP — but it is a stronger `I_0` than the plain seed
 and a worked example of what a discovered optimizer looks like.
 
+### 2.6 Exact Benchmark Evaluation & CPU Load Management
+
+Guided Local Search (GLS) on ATSP is a CPU-bound NumPy optimization loop with a wall-clock time limit (e.g. `time_limit: 30.0s` per instance).
+
+> [!IMPORTANT]
+> **Check CPU Load Before Running Official Benchmark Evaluations**:
+> If heavy background processes (such as data generation, parallel compiling, or another training run) are active, CPU cores become saturated. Under heavy contention, Python executes fewer local search iterations within the 30.0s time limit, artificially increasing the optimality gap.
+
+#### How to Check for Processes Saturating CPU Cores:
+
+1. **Check Top CPU-Consuming Processes**:
+   ```bash
+   ps aux -r | head -n 10
+   ```
+2. **Check Running Python / Pytest Processes**:
+   ```bash
+   ps aux | grep -E "python|pytest" | grep -v grep
+   ```
+3. **Live Interactive CPU Monitor**:
+   ```bash
+   top -o cpu
+   ```
+4. **Kill Stuck / Runaway Background Processes**:
+   ```bash
+   kill -9 <PID>
+   # or terminate all background python jobs:
+   pkill -9 -f python
+   ```
+
 ---
 
 ## 3. Layout
@@ -246,9 +275,9 @@ works standalone.
 | `problem` | `atsp_gls` | which downstream task |
 | `problem.problem_size` | `[50, 200]` | **the subtasks.** One per size, weighted by size in Eq. (2) |
 | `data` | `synthetic` | which instances the search and the report use |
-| `n_iterations` | `10` | outer-loop iterations `T` (the paper's setting) |
-| `pop_size` | `10` | both populations (Section 3.3; Table 5 shows 1 and 5 are worse) |
-| `max_eval_calls` | `60` | heuristic evaluations **per subtask**; total = this × N |
+| `n_iterations` | `15` | outer-loop iterations `T` |
+| `pop_size` | `15` | both populations |
+| `max_eval_calls` | `300` | heuristic evaluations **per subtask**; total = this × N |
 | `problem.threshold` | per size | seed-acceptance bar; set it from `baselines.sh` |
 | `mode` | `train` | `inference` reuses a trained optimizer, skipping the outer loop |
 | `heu.model` / `meta.model` | `gpt-4o-mini` | inner- and outer-loop models, separately |
