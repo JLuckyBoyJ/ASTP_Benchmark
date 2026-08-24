@@ -56,43 +56,84 @@ def find_braces(response):
     return None
 
 
+def clean_python_code(code: str) -> str:
+    """Comment out conversational preambles inside code blocks before imports/defs."""
+    if not code:
+        return code
+    stripped_code = code.strip()
+    if stripped_code.startswith("{") or stripped_code.startswith("["):
+        return code
+    if "def " not in code and "import " not in code and "from " not in code:
+        return code
+
+    lines = code.split("\n")
+    cleaned_lines = []
+    in_code = False
+    for line in lines:
+        stripped = line.strip()
+        if not in_code and stripped and not (
+            stripped.startswith("import") or 
+            stripped.startswith("from") or 
+            stripped.startswith("def") or 
+            stripped.startswith("#") or 
+            stripped.startswith("class") or
+            stripped.startswith('"""') or
+            stripped.startswith("'''")
+        ):
+            cleaned_lines.append(f"# {line}")
+        else:
+            if stripped.startswith("import") or stripped.startswith("def") or stripped.startswith("from"):
+                in_code = True
+            cleaned_lines.append(line)
+    return "\n".join(cleaned_lines)
+
+
 def extract_code(algorithm_str):
     """Extract largest markdown code block."""
     if isinstance(algorithm_str, str):
-        return find_largest_code_block_line_by_line(algorithm_str)
+        code = find_largest_code_block_line_by_line(algorithm_str)
+        return ensure_numpy_import(clean_python_code(code)) if code else None
     elif isinstance(algorithm_str, list):
         return [extract_code(s) for s in algorithm_str]
 
 
 def find_largest_code_block_line_by_line(text):
-    """Find the largest ``` code block in text."""
-    largest_block = ""
-    current_block = ""
-    nesting_level = 0
-    lines = text.split("\n")
+    """Find the largest Python ``` code block in text."""
+    blocks = []
+    current_block = []
+    in_block = False
 
-    for line in lines:
+    for line in text.split("\n"):
         if line.startswith("```"):
-            if not line[3:].strip():  # closing delimiter
-                nesting_level -= 1
-                if nesting_level == 0:
-                    current_block += line + "\n"
-                    if len(current_block) > len(largest_block):
-                        largest_block = current_block
-                    current_block = ""
-                else:
-                    current_block += line + "\n"
-            else:  # opening delimiter
-                current_block += line + "\n"
-                nesting_level += 1
-        else:
-            if nesting_level > 0:
-                current_block += line + "\n"
+            if in_block:
+                in_block = False
+                blocks.append("\n".join(current_block))
+                current_block = []
+            else:
+                in_block = True
+                current_block = []
+        elif in_block:
+            current_block.append(line)
 
-    if largest_block:
-        largest_block = "\n".join(largest_block.strip().split("\n")[1:-1])
+    py_blocks = [b for b in blocks if "def " in b or "import " in b]
+    if py_blocks:
+        return max(py_blocks, key=len)
+    if blocks:
+        return max(blocks, key=len)
 
-    return largest_block if largest_block else None
+    if "def " in text:
+        lines = text.split("\n")
+        start = False
+        code_lines = []
+        for line in lines:
+            if line.strip().startswith("def ") or line.strip().startswith("import ") or line.strip().startswith("from "):
+                start = True
+            if start:
+                code_lines.append(line)
+        if code_lines:
+            return "\n".join(code_lines)
+
+    return None
 
 
 def find_txt_block(string):

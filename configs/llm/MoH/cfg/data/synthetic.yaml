@@ -37,11 +37,17 @@ description: >
 # size because they imitate the two distinct regimes in TSPLIB ATSP — see
 # configs/datasets/synthetic_atsp.yaml.
 val: &search_split
-  - {source: synthetic, family: asymmetric_clustered,   size: 50,  count: 2, seed: 2024, effort: medium}
-  - {source: synthetic, family: scheduling_constrained, size: 50,  count: 2, seed: 2024, effort: medium}
-  - {source: synthetic, family: asymmetric_clustered,   size: 200, count: 1, seed: 2024, effort: low}
-  - {source: synthetic, family: scheduling_constrained, size: 200, count: 1, seed: 2024, effort: low}
-  - {source: synthetic, family: uniform,                size: 200, count: 1, seed: 2024, effort: low}
+  - {source: synthetic, family: asymmetric_clustered,   size: 50,  count: 5, seed: 2024, effort: medium}
+  - {source: synthetic, family: scheduling_constrained, size: 50,  count: 5, seed: 2024, effort: medium}
+  - {source: synthetic, family: asymmetric_clustered,   size: 100, count: 5, seed: 2024, effort: medium}
+  - {source: synthetic, family: scheduling_constrained, size: 100, count: 5, seed: 2024, effort: medium}
+  - {source: synthetic, family: asymmetric_clustered,   size: 200, count: 4, seed: 2024, effort: low}
+  - {source: synthetic, family: scheduling_constrained, size: 200, count: 3, seed: 2024, effort: low}
+  - {source: synthetic, family: uniform,                size: 200, count: 3, seed: 2024, effort: low}
+  - {source: synthetic, family: asymmetric_clustered,   size: 300, count: 5, seed: 2024, effort: low}
+  - {source: synthetic, family: scheduling_constrained, size: 300, count: 5, seed: 2024, effort: low}
+  - {source: synthetic, family: asymmetric_clustered,   size: 400, count: 5, seed: 2024, effort: low}
+  - {source: synthetic, family: scheduling_constrained, size: 400, count: 5, seed: 2024, effort: low}
 
 train: *search_split
 

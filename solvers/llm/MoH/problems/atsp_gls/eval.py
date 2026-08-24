@@ -1,5 +1,5 @@
 """Evaluate a MoH-designed `update_edge_distance` rule for ATSP guided local search.
-
+   
     python -u eval.py <problem_size> <root_dir> <train|val|test> [timeout]
 
 Prints the utility (mean optimality gap, %) as the last stdout line, which is
@@ -39,7 +39,6 @@ from concurrent.futures import ProcessPoolExecutor
 
 TASK = "atsp_gls"
 
-
 def solve(instance, settings: dict) -> float:
     _, cost = guided_local_search(
         instance.dist, update_edge_distance,
@@ -49,11 +48,9 @@ def solve(instance, settings: dict) -> float:
     )
     return cost
 
-
 def _solve_worker(args):
     instance, settings = args
     return solve(instance, settings)
-
 
 if __name__ == "__main__":
     print("[*] Running ATSP guided local search ...")
@@ -63,11 +60,13 @@ if __name__ == "__main__":
 
     settings = budget(TASK, mood)
     instances = load_instances(mood, problem_size)
-    if len(instances) > 1:
+    if mood == "test":
+        # In test validation, run sequentially so each instance gets 100% dedicated CPU throughput without process contention
+        costs = [solve(instance, settings) for instance in instances]
+    elif len(instances) > 1:
         max_workers = min(len(instances), os.cpu_count() or 4)
         with ProcessPoolExecutor(max_workers=max_workers) as executor:
             costs = list(executor.map(_solve_worker, [(inst, settings) for inst in instances]))
     else:
         costs = [solve(instance, settings) for instance in instances]
     report(instances, costs)
-

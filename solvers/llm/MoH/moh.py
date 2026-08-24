@@ -63,6 +63,7 @@ import json
 import logging
 import math
 import os
+import random
 import re
 import subprocess
 import sys
@@ -94,6 +95,10 @@ logger = logging.getLogger(__name__)
 #: The utility assigned to anything that failed to run. Large enough to lose
 #: every comparison, finite so the weighted mean in Eq. (2) stays a number.
 FAILED = 1e6
+
+class BudgetExhaustedError(Exception):
+    """Raised when evaluation budget is spent to immediately terminate LLM search loops."""
+    pass
 
 #: Rejects actual use of the random modules rather than the substring "random",
 #: so an identifier like `randomised_weight` survives. The task prompts forbid
@@ -263,6 +268,33 @@ class MoH:
                  mode, str(self.cfg.timeout)],
                 stdout=f, stderr=f, cwd=self.root_dir, env=self.eval_env)
 
+    def probe_heuristic(self, algorithm_str: str) -> bool:
+        """Fast in-memory probing of candidate code on dummy test instances.
+
+        Catches array shape mismatches, missing arguments, non-finite values, and
+        dimension indexing errors in <1ms before launching subprocesses.
+        """
+        try:
+            code = ensure_numpy_import(algorithm_str)
+            ns = {"np": np, "numpy": np, "math": math, "random": random}
+            exec(code, ns)
+            func = ns.get("update_edge_distance")
+            if not callable(func):
+                return False
+            for n in (5, 10):
+                d = np.ones((n, n), dtype=float) - np.eye(n)
+                tour = np.arange(n)
+                used = np.zeros((n, n), dtype=int)
+                res = func(d.copy(), tour, used)
+                if not isinstance(res, np.ndarray) or res.shape != (n, n):
+                    return False
+                if not np.all(np.isfinite(res)):
+                    return False
+            return True
+        except Exception as exc:
+            logger.info(f"probe_heuristic caught error: {exc}")
+            return False
+
     def evaluate_heuristic(self, algorithm_str: str, problem_type: str,
                            mode: str = "val") -> float:
         """``U_i(h, D_i)``: the mean optimality gap of one heuristic, in percent."""
@@ -275,6 +307,9 @@ class MoH:
         if len(algorithm_str) < 30:
             logger.info("algorithm_str is too short to be a heuristic")
             return FAILED
+        if not self.probe_heuristic(algorithm_str):
+            logger.info("candidate failed fast in-memory probing check")
+            return FAILED
 
         if self.max_eval_calls and self._total_eval_calls >= self.max_eval_calls:
             # Checked here, not only between iterations: seeding alone can
@@ -282,9 +317,9 @@ class MoH:
             if not self._budget_exhausted:
                 logger.warning(f"Evaluation budget spent ({self.max_eval_calls}); "
                                f"further candidates score {FAILED:g} and the run "
-                               f"will stop at the end of this iteration.")
+                               f"will stop immediately.")
                 self._budget_exhausted = True
-            return FAILED
+            raise BudgetExhaustedError(f"Evaluation budget spent ({self.max_eval_calls})")
 
         self._total_eval_calls += 1
         if self.max_eval_calls:
@@ -555,14 +590,38 @@ class MoH:
             return score
         return utility
 
+    def _compile_improver(self, improve_str: str):
+        """Safely compile candidate optimizer code string into a callable function."""
+        import math
+        import random
+        import json
+
+        namespace = dict(globals())
+        namespace.update({
+            "math": math,
+            "exp": math.exp,
+            "log": math.log,
+            "sqrt": math.sqrt,
+            "np": np,
+            "numpy": np,
+            "json": json,
+            "random": random,
+            "expertise": (
+                "You are an expert in the domain of designing meta optimization "
+                "strategy and combinatorial optimization problems. Your task is to "
+                "design heuristics that can effectively solve optimization problems."
+            ),
+        })
+        exec(ensure_numpy_import(improve_str), namespace)
+        func = namespace.get("improve_algorithm")
+        if not callable(func):
+            raise ValueError("the candidate defines no improve_algorithm")
+        return func
+
     def get_improver(self, improve_str, subtask_str, subtask):
         """Run a candidate optimizer once on one subtask (the inner loop)."""
         try:
-            namespace = dict(globals())
-            exec(improve_str, namespace)
-            improve_algorithm = namespace.get("improve_algorithm")
-            if not callable(improve_algorithm):
-                raise ValueError("the candidate defines no improve_algorithm")
+            improve_algorithm = self._compile_improver(improve_str)
             return improve_algorithm(
                 copy.deepcopy(self.subtask_pop), self._make_subtask_utility(subtask),
                 self.heu_llm, subtask_str, subtask)
@@ -570,6 +629,7 @@ class MoH:
             logger.warning(f"candidate optimizer failed on {subtask}: {exc}")
             logger.debug("", exc_info=True)
             return exc
+
 
     def meta_utility(self, improve_str: str, idea: str, task: str = None) -> float:
         """``U(I)`` — Eq. (2): the size-weighted mean utility of one optimizer."""
@@ -598,92 +658,72 @@ class MoH:
             verdict = self.meta_llm.prompt(
                 "You will act as a professional coder and analyze a given function "
                 "provided as a string.",
-                self.system_check_prompt.replace("{code}", improve_str))
-            iterations = match_number(find_txt_block(verdict) or verdict)
-            cap = int(self.cfg.get("max_optimizer_iterations", 10))
-            if isinstance(iterations, int) and iterations > cap:
-                logger.info(f"candidate optimizer loops {iterations} times (> {cap}); "
-                            f"rejected")
+                f"Check if the following Python function definition contains a while "
+                f"loop or loop structure that executes more than "
+                f"{self.cfg.max_optimizer_iterations} iterations. Reply ONLY in "
+                f"JSON: {{\"loop_count\": N}}.",
+                0.0)
+            data = json.loads(extract_code(verdict))
+            count = int(data.get("loop_count", 0))
+            if count > self.cfg.max_optimizer_iterations:
+                logger.info(f"candidate optimizer loops {count} times (> "
+                            f"{self.cfg.max_optimizer_iterations}); rejected")
                 self.run_logger.save_candidate_improver(
-                    improve_str, idea, note=f"rejected: {iterations} iterations")
+                    improve_str, idea, note=f"rejected: loops {count} times")
                 return FAILED
-        except Exception as exc:
-            logger.warning(f"iteration check failed ({exc}); scoring the candidate anyway")
+        except Exception:
+            pass  # parser failed; let it run and trust the evaluation cap
 
-        utility_vals: list[float] = []
-        for subtask in tqdm(self.subtask_list, desc="subtasks", leave=False):
+        # Score the optimizer across all downstream subtasks (Section 3.2, Eq. 2)
+        utilities = []
+        for subtask in self.subtask_list:
+            if self._budget_exhausted:
+                break
             self.read_base_algorithm(subtask)
-
             result = self.get_improver(improve_str, self.subtask_form, subtask)
             if isinstance(result, Exception):
-                return FAILED
-            idea_r, improved_algorithm_str, new_utility = result
-            if not improved_algorithm_str:
-                logger.info(f"{subtask}: the optimizer returned no code; rejected")
-                return FAILED
-            if new_utility is None or not math.isfinite(new_utility):
-                logger.info(f"{subtask}: the optimizer returned utility "
-                            f"{new_utility!r}; rejected")
-                return FAILED
+                logger.warning(f"candidate optimizer failed on {subtask}: {result}")
+                utilities.append(FAILED)
+                continue
+            idea_r, code, utility = result
+            if not code or utility is None or not math.isfinite(utility):
+                utilities.append(FAILED)
+            else:
+                utilities.append(utility)
 
-            self.subtask_pop.save_solution(subtask, idea_r, improved_algorithm_str,
-                                           new_utility)
-            self._note_best(subtask, idea_r, improved_algorithm_str, new_utility)
-            self.subtask_pop.save_subtask_to_file(subtask,
-                                                  self._solution_cache_path(subtask))
-            utility_vals.append(float(new_utility))
-            logger.info(f"utility on {subtask}: {new_utility:.4f}")
-            self.run_logger.log_utility(self._cur_iter, subtask, new_utility)
+        if not utilities or any(u >= FAILED for u in utilities):
+            return FAILED
 
-        # Eq. (2): w_i = s_i / sum_j s_j. Larger instances weigh more, because
-        # heuristics degrade with size and the paper's generalisation claim is
-        # about the large end.
-        expected_utility_val = float(
-            np.dot(self.size_weights, utility_vals) / self.size_weights.sum())
-
-        logger.info(f"meta-utility of this candidate: {expected_utility_val:.4f}")
-        self.run_logger.save_candidate_improver(improve_str, idea,
-                                                utility=expected_utility_val)
-        self.improver_pop.save_solution("meta-optimizer", idea, improve_str,
-                                        expected_utility_val)
-        return expected_utility_val
+        # Size-weighted mean gap: Eq. (2), w_i = s_i / sum_j s_j
+        weights = self.size_weights[:len(utilities)]
+        weighted = float(np.sum(np.array(utilities) * weights) / np.sum(weights))
+        logger.info(f"Meta utility U(I) = {weighted:.4f} across {len(utilities)} subtasks")
+        return weighted
 
     # =========================================================================
-    # The two loops
+    # Algorithm 1: The outer loop
     # =========================================================================
 
     def get_seed(self):
-        """Score ``I_0`` so the outer loop starts from a real baseline."""
-        self._cur_iter = -1
-        idea = "seed optimizer"
-        self.meta_utility_val = self.meta_utility(self.improver_str, idea)
-        self.improver_pop.save_solution("meta-optimizer", idea, self.improver_str,
-                                        self.meta_utility_val)
-        self.best_improver = {"idea": idea, "best_sol": self.improver_str,
-                              "utility": self.meta_utility_val, "iteration": -1}
-        self.run_logger.save_improver_pop(self.improver_pop, "pre")
-        self.run_logger.save_subtask_pop(self.subtask_pop, "pre")
-        self.run_logger.log_meta_utility(-1, self.meta_utility_val, accepted=True,
-                                         eval_calls=self._total_eval_calls)
-        self.run_logger.log_progress({
-            "iteration": -1, "phase": "seed",
-            "meta_utility": self.meta_utility_val, "accepted": True,
-            "best_so_far": self.meta_utility_val,
-            "eval_calls": self._total_eval_calls})
+        """Initialize populations and evaluate the seed meta-optimizer I_0."""
+        for subtask in self.subtask_list:
+            self.read_base_algorithm(subtask)
+
+        if self.cfg.get("mode", "train") == "inference":
+            self.meta_utility_val = None
+            return
+
+        logger.info("Evaluating seed meta-optimizer I_0 ...")
+        seed_idea = "seed optimizer"
+        self.improver_pop.save_solution("meta-optimizer", seed_idea,
+                                        self.improver_str, FAILED)
+        self.meta_utility_val = self.meta_utility(self.improver_str, seed_idea)
         if self.meta_utility_val >= FAILED:
-            # Everything downstream is measured against this number, so a
-            # failed baseline is worth one loud line rather than a run that
-            # quietly reports 1e6 as its result.
-            logger.error(
-                f"The seed optimizer scored {FAILED:g} — it did not produce a "
-                f"working heuristic on any subtask. Common causes, in order: the "
-                f"evaluation budget (max_eval_calls={self.cfg.max_eval_calls}) is "
-                f"too small to finish seeding; cfg.problem.threshold is tighter "
-                f"than anything the model writes (check "
-                f"`bash scripts/llm/MoH/baselines.sh`); or the engine itself is "
-                f"failing — look at evaluations/index.jsonl for the status of "
-                f"each attempt. The outer loop will still run, but it has no "
-                f"baseline to improve on.")
+            logger.warning(
+                "Seed meta-optimizer scored FAILED — check whether evaluations are "
+                "failing — look at evaluations/index.jsonl for the status of "
+                "each attempt. The outer loop will still run, but it has no "
+                "baseline to improve on.")
         else:
             logger.info(f"Seed optimizer meta-utility: {self.meta_utility_val}")
 
@@ -737,6 +777,8 @@ class MoH:
                             f"incumbent's {self.meta_utility_val:.4f}")
             return improved, new_algorithm_str, new_idea, improve_algorithm_func
 
+        except BudgetExhaustedError:
+            raise
         except Exception as exc:
             logger.warning(f"outer-loop step failed: {exc}")
             logger.debug("", exc_info=True)
@@ -754,8 +796,13 @@ class MoH:
             self._cur_iter = cur_iter
             logger.info(f"=== outer-loop iteration {cur_iter}/{self.iteration - 1} ===")
 
-            improved, new_algorithm_str, new_idea, improver = self.try_improvement(
-                improver, previous_algorithm)
+            try:
+                improved, new_algorithm_str, new_idea, improver = self.try_improvement(
+                    improver, previous_algorithm)
+            except BudgetExhaustedError:
+                logger.info(f"Evaluation budget spent ({self.max_eval_calls}); stopping "
+                            f"outer loop at iteration {cur_iter}.")
+                break
 
             # Algorithm 1, step (c): I*_t is the best individual in
             # P ∪ {candidates}, whether that is this iteration's proposal or the
@@ -766,20 +813,17 @@ class MoH:
                 self.improver_str = new_algorithm_str
                 self.algorithm_to_improve = new_algorithm_str
                 previous_algorithm = improver
-                namespace = dict(globals())
-                exec(self.improver_str, namespace)
-                if callable(namespace.get("improve_algorithm")):
-                    improver = namespace["improve_algorithm"]
+                try:
+                    improver = self._compile_improver(self.improver_str)
+                except Exception as exc:
+                    logger.warning(f"could not compile accepted optimizer ({exc})")
             else:
                 logger.info("no improvement this iteration; I*_t stays the best "
                             "optimizer in the population")
                 best = self.improver_pop.get_best_solution("meta-optimizer")
                 self.improver_str = best["best_sol"]
-                namespace = dict(globals())
                 try:
-                    exec(best["best_sol"], namespace)
-                    if callable(namespace.get("improve_algorithm")):
-                        improver = namespace["improve_algorithm"]
+                    improver = self._compile_improver(best["best_sol"])
                 except Exception as exc:
                     logger.warning(f"could not restore the best optimizer ({exc}); "
                                    f"continuing with the previous one")
@@ -864,12 +908,74 @@ class MoH:
     # Results
     # =========================================================================
 
+    def select_headline(self) -> dict | None:
+        """Pick the heuristic to export, by a cross-subtask play-off.
+
+        A multi-task run ends with one heuristic per subtask, each scored ONLY
+        on its own size. Exporting the largest subtask's winner selects on a
+        handful of instances at one size, which is noisy.
+
+        So: run every subtask's best heuristic on EVERY subtask and export the
+        one with the best size-weighted mean.
+        """
+        candidates = {k: v for k, v in self.best_per_subtask.items() if v.get("best_sol")}
+        if not candidates:
+            return None
+        if len(candidates) == 1 or not self.cfg.get("final_playoff", True):
+            return max(candidates.values(), key=lambda v: -v["utility"])
+
+        logger.info(f"Cross-subtask play-off: {len(candidates)} heuristics x "
+                    f"{len(self.subtask_list)} subtasks")
+        self._cur_iter = 9999
+        saved_budget, saved_flag = self.max_eval_calls, self._budget_exhausted
+        self.max_eval_calls, self._budget_exhausted = None, False
+        try:
+            return self._playoff(candidates)
+        finally:
+            self.max_eval_calls, self._budget_exhausted = saved_budget, saved_flag
+
+    def _playoff(self, candidates: dict):
+        scores = {}
+        for origin, entry in candidates.items():
+            vals = []
+            for subtask in self.subtask_list:
+                value = self.evaluate_heuristic(entry["best_sol"], subtask, mode="val")
+                if value >= FAILED:
+                    vals = None
+                    break
+                vals.append(value)
+            if vals is None:
+                logger.info(f"  {origin}: failed somewhere in the play-off, skipped")
+                continue
+            weighted = float(np.dot(self.size_weights, vals) / self.size_weights.sum())
+            scores[origin] = weighted
+            logger.info(f"  {origin}: weighted {weighted:.4f}  "
+                        f"({', '.join(f'{v:.3f}' for v in vals)})")
+
+        if not scores:
+            logger.warning("no heuristic survived the play-off; falling back to the "
+                           "largest subtask's winner")
+            return candidates.get(self.subtask_list[int(np.argmax(self.size_weights))])
+
+        winner = min(scores, key=scores.get)
+        logger.info(f"Play-off winner: {winner} (weighted {scores[winner]:.4f})")
+        entry = dict(candidates[winner])
+        entry["origin_subtask"] = winner
+        entry["playoff_weighted"] = scores[winner]
+        entry["playoff_scores"] = scores
+        return entry
+
     def results(self) -> dict:
         """Everything ``main.py`` needs to write the run's artefacts."""
         largest = self.subtask_list[int(np.argmax(self.size_weights))]
-        headline = self.best_per_subtask.get(largest) or next(
-            iter(sorted(self.best_per_subtask.values(),
-                        key=lambda v: v["utility"])), None)
+        headline = getattr(self, "_headline", None)
+        if headline is None:
+            headline = self.select_headline()
+        if headline is None:
+            headline = self.best_per_subtask.get(largest) or next(
+                iter(sorted(self.best_per_subtask.values(),
+                            key=lambda v: v["utility"])), None)
+        largest = (headline or {}).get("origin_subtask", largest)
         return {
             "subtasks": self.subtask_list,
             "best_per_subtask": self.best_per_subtask,

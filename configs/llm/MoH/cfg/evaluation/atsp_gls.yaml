@@ -31,4 +31,4 @@ val: *search_budget
 
 test:
   iter_limit: 1000
-  time_limit: 10.0
+  time_limit: 30.0

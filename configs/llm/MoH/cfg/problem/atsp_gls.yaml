@@ -24,7 +24,7 @@ func_name: update_edge_distance
 #
 # Every size listed must exist in the active data config, or atsp_utils raises
 # and tells you which sizes it has.
-problem_size: [50, 200]
+problem_size: [50, 100, 200, 300, 400]
 
 # Seed-acceptance threshold per size: a sampled seed heuristic joins the
 # population only if its utility (mean gap %) is below this. Too tight and the
@@ -34,7 +34,10 @@ problem_size: [50, 200]
 #   bash scripts/llm/MoH/baselines.sh
 threshold:
   50: 20.0
+  100: 20.0
   200: 25.0
+  300: 25.0
+  400: 25.0
 threshold_default: 25.0
 
 # Two subtask instances of ~10 s of guided local search each, plus interpreter
